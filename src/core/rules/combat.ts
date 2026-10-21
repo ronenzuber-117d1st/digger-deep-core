@@ -22,28 +22,55 @@ export function applyPulse(state: RunState, dt: number): GameEvent[] {
     const tile = tileAt(state.grid, tx, ty);
     if (tile === TileType.Bedrock || tile === TileType.Dirt) break;
 
-    const hit = hitEntityAt(state, tx, ty, events);
+    const hit = hitEntityAt(state, tx, ty, events, p.pulseDamage);
     if (hit) break;
   }
 
   return events;
 }
 
-function hitEntityAt(state: RunState, x: number, y: number, events: GameEvent[]): boolean {
+function hitEntityAt(
+  state: RunState,
+  x: number,
+  y: number,
+  events: GameEvent[],
+  damage: number,
+): boolean {
   for (const e of state.entities) {
     if (e.x !== x || e.y !== y) continue;
 
     if (e.kind === 'grub') {
-      e.hp -= tuning.pulse.damage;
+      e.hp -= damage;
       if (e.hp <= 0) {
         events.push({ type: 'kill', targetId: e.id, kind: 'grub' });
         state.entities = state.entities.filter((ent) => ent.id !== e.id);
+        state.kills++;
+      }
+      return true;
+    }
+
+    if (e.kind === 'burrower') {
+      e.hp -= damage;
+      if (e.hp <= 0) {
+        events.push({ type: 'kill', targetId: e.id, kind: 'burrower' });
+        state.entities = state.entities.filter((ent) => ent.id !== e.id);
+        state.kills++;
+      }
+      return true;
+    }
+
+    if (e.kind === 'spitter') {
+      e.hp -= damage;
+      if (e.hp <= 0) {
+        events.push({ type: 'kill', targetId: e.id, kind: 'spitter' });
+        state.entities = state.entities.filter((ent) => ent.id !== e.id);
+        state.kills++;
       }
       return true;
     }
 
     if (e.kind === 'nest') {
-      e.hp -= tuning.pulse.damage;
+      e.hp -= damage;
       if (e.hp <= 0) {
         events.push({ type: 'kill', targetId: e.id, kind: 'nest' });
         state.entities = state.entities.filter((ent) => ent.id !== e.id);
@@ -60,7 +87,7 @@ export function applyContactDamage(state: RunState): GameEvent[] {
   if (p.invulTimer > 0) return events;
 
   for (const e of state.entities) {
-    if (e.kind !== 'grub') continue;
+    if (e.kind !== 'grub' && e.kind !== 'burrower' && e.kind !== 'spitter') continue;
     if (!e.moving && e.x === p.x && e.y === p.y) {
       p.hp -= 1;
       p.invulTimer = tuning.player.invulDuration;

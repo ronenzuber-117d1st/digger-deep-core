@@ -1,0 +1,68 @@
+{
+  "permanent": [
+    {
+      "id": "hull",
+      "label": "Hull",
+      "description": "+1 max HP",
+      "maxLevel": 3,
+      "baseCost": 90,
+      "tier": "mid"
+    },
+    {
+      "id": "fuelTank",
+      "label": "Fuel Tank",
+      "description": "+10% starting fuel",
+      "maxLevel": 5,
+      "baseCost": 60,
+      "tier": "cheap"
+    },
+    {
+      "id": "drillMotor",
+      "label": "Drill Motor",
+      "description": "+10% dig speed",
+      "maxLevel": 5,
+      "baseCost": 60,
+      "tier": "cheap"
+    },
+    {
+      "id": "pulseCore",
+      "label": "Pulse Core",
+      "description": "+1 pulse damage",
+      "maxLevel": 3,
+      "baseCost": 150,
+      "tier": "expensive"
+    },
+    {
+      "id": "prospector",
+      "label": "Prospector",
+      "description": "+10% emerald value",
+      "maxLevel": 5,
+      "baseCost": 90,
+      "tier": "mid"
+    },
+    {
+      "id": "salvageContract",
+      "label": "Salvage Contract",
+      "description": "Keep +10% on death",
+      "maxLevel": 3,
+      "baseCost": 150,
+      "tier": "expensive"
+    },
+    {
+      "id": "extraPick",
+      "label": "Extra Pick",
+      "description": "Start every dive with 1 free run pick",
+      "maxLevel": 1,
+      "baseCost": 150,
+      "tier": "expensive"
+    },
+    {
+      "id": "lanternMount",
+      "label": "Lantern Mount",
+      "description": "Lantern effect on all dives",
+      "maxLevel": 1,
+      "baseCost": 90,
+      "tier": "mid"
+    }
+  ]
+}

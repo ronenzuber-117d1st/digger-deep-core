@@ -1,5 +1,5 @@
 {
-  "floor": { "width": 30, "height": 17, "tileSize": 16 },
+  "floor": { "width": 30, "height": 17, "tileSize": 16, "valueBasePerFloor": 0.1, "extractionFloors": [5, 10, 15, 20] },
   "player": {
     "startHp": 3,
     "startFuel": 100,
@@ -32,6 +32,21 @@
     "damage": 1,
     "pathfindInterval": 0.5
   },
+  "burrower": {
+    "hp": 3,
+    "speed": 2.5,
+    "damage": 1,
+    "pathfindInterval": 0.5,
+    "digDelay": 5.0
+  },
+  "spitter": {
+    "hp": 2,
+    "speed": 1.5,
+    "damage": 1,
+    "pathfindInterval": 1.0,
+    "fireInterval": 2.5,
+    "projectileSpeed": 8
+  },
   "nest": {
     "hp": 1,
     "spawnInterval": 10,
@@ -40,10 +55,16 @@
     "perFloorScale": 5
   },
   "gem": {
-    "perFloor": 8
+    "perFloor": 8,
+    "baseValue": 1
   },
   "fuel": {
     "perFloorMin": 1,
     "perFloorMax": 2
+  },
+  "economy": {
+    "deathKeepFraction": 0.5,
+    "extractionKeepFraction": 1.0,
+    "costExponent": 1.6
   }
 }

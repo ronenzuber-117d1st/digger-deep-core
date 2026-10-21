@@ -3,6 +3,8 @@ export type GameEvent =
   | { type: 'hit'; source: 'monster' | 'bag' | 'fuel-empty' }
   | { type: 'bag-break'; x: number; y: number }
   | { type: 'floor-clear' }
+  | { type: 'extraction' }
   | { type: 'death' }
   | { type: 'pulse-fire'; x: number; y: number; dir: string }
-  | { type: 'kill'; targetId: number; kind: 'grub' | 'nest' };
+  | { type: 'kill'; targetId: number; kind: 'grub' | 'burrower' | 'spitter' | 'nest' }
+  | { type: 'spawn'; kind: 'grub' | 'burrower' | 'spitter'; x: number; y: number };

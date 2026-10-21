@@ -1,48 +1,63 @@
-import { SaveData, createFreshSave, migrate } from '../core/save';
-
-const SAVE_KEY = 'deepcore.save';
-const BACKUP_KEY = 'deepcore.save.backup';
+import { SaveData, SAVE_KEY, SAVE_BACKUP_KEY, createFreshSave, migrate } from '../core/save';
 
 let inMemorySave: SaveData | null = null;
+let _storageAvailable: boolean | null = null;
 
-function isAvailable(): boolean {
+function checkStorage(): boolean {
+  if (_storageAvailable !== null) return _storageAvailable;
   try {
-    localStorage.setItem('__test__', '1');
-    localStorage.removeItem('__test__');
-    return true;
+    const probe = '__dc_probe__';
+    localStorage.setItem(probe, '1');
+    localStorage.removeItem(probe);
+    _storageAvailable = true;
   } catch {
-    return false;
+    _storageAvailable = false;
   }
+  return _storageAvailable;
 }
 
-export function load(): { save: SaveData; inMemory: boolean } {
-  if (!isAvailable()) {
-    return { save: createFreshSave(), inMemory: true };
+export function isStorageAvailable(): boolean {
+  return checkStorage();
+}
+
+export function loadSave(): SaveData {
+  if (!checkStorage()) {
+    if (inMemorySave === null) inMemorySave = createFreshSave();
+    return inMemorySave;
   }
+
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return { save: createFreshSave(), inMemory: false };
+    if (raw === null) return createFreshSave();
     const parsed: unknown = JSON.parse(raw);
-    return { save: migrate(parsed), inMemory: false };
+    return migrate(parsed);
   } catch {
-    return { save: createFreshSave(), inMemory: false };
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw !== null) localStorage.setItem(SAVE_BACKUP_KEY, raw);
+    } catch { /* best effort backup */ }
+    return createFreshSave();
   }
 }
 
-export function save(data: SaveData): void {
-  if (!isAvailable()) {
+export function saveSave(data: SaveData): void {
+  if (!checkStorage()) {
     inMemorySave = data;
     return;
   }
   try {
-    const existing = localStorage.getItem(SAVE_KEY);
-    if (existing) localStorage.setItem(BACKUP_KEY, existing);
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch {
     inMemorySave = data;
   }
 }
 
-export function getInMemorySave(): SaveData | null {
-  return inMemorySave;
+export function resetSave(): SaveData {
+  const fresh = createFreshSave();
+  if (checkStorage()) {
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* best effort */ }
+    try { localStorage.removeItem(SAVE_BACKUP_KEY); } catch { /* best effort */ }
+  }
+  inMemorySave = fresh;
+  return fresh;
 }

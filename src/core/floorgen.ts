@@ -7,8 +7,9 @@ import {
   FuelEntity,
   NestEntity,
 } from './entities';
-import { makeGrub } from './rules/monsters';
+import { makeGrub, makeBurrower, makeSpitter } from './rules/monsters';
 import tuning from '../data/tuning.json';
+import monsterDefs from '../data/monsters.json';
 
 export interface FloorData {
   grid: Grid;
@@ -19,6 +20,22 @@ export interface FloorData {
 
 const W = tuning.floor.width;
 const H = tuning.floor.height;
+
+type MonsterKind = 'grub' | 'burrower' | 'spitter';
+
+function buildMonsterPool(floor: number): MonsterKind[] {
+  const pool: MonsterKind[] = [];
+  for (const def of monsterDefs) {
+    if (floor >= def.minFloor) {
+      pool.push(def.id as MonsterKind);
+    }
+  }
+  return pool;
+}
+
+function pickMonster(rng: RNG, pool: MonsterKind[]): MonsterKind {
+  return pool[nextInt(rng, 0, pool.length)];
+}
 
 export function generateFloor(rng: RNG, floor: number): FloorData {
   const grid = createGrid(W, H);
@@ -108,11 +125,23 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     entities.push(nest);
   }
 
-  const grubStart = pickInterior();
-  if (grubStart !== null) {
-    markOccupied(grubStart.x, grubStart.y);
-    entities.push(makeGrub(nextId++, grubStart.x, grubStart.y));
-    setTile(grid, grubStart.x, grubStart.y, TileType.Empty);
+  const monsterPool = buildMonsterPool(floor);
+  const monsterStart = pickInterior();
+  if (monsterStart !== null) {
+    markOccupied(monsterStart.x, monsterStart.y);
+    setTile(grid, monsterStart.x, monsterStart.y, TileType.Empty);
+    const kind = pickMonster(rng, monsterPool);
+    switch (kind) {
+      case 'grub':
+        entities.push(makeGrub(nextId++, monsterStart.x, monsterStart.y));
+        break;
+      case 'burrower':
+        entities.push(makeBurrower(nextId++, monsterStart.x, monsterStart.y));
+        break;
+      case 'spitter':
+        entities.push(makeSpitter(nextId++, monsterStart.x, monsterStart.y));
+        break;
+    }
   }
 
   return { grid, playerStart, entities, startNextId: nextId };

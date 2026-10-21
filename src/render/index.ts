@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { RunState } from '../core/run';
 import { TileType } from '../core/grid';
-import { Entity, BagEntity, GrubEntity } from '../core/entities';
+import { Entity, BagEntity, GrubEntity, BurrowerEntity, SpitterEntity, ProjectileEntity, dirDelta } from '../core/entities';
 import tuning from '../data/tuning.json';
 
 const T = tuning.floor.tileSize;
@@ -15,6 +15,11 @@ const COLORS = {
   playerInvul: 0xaaaaaa,
   grub: 0xff4444,
   grubDead: 0x882222,
+  burrower: 0xe04040,
+  burrowerDig: 0xff8800,
+  spitter: 0xcc44cc,
+  spitterEye: 0xffffff,
+  projectile: 0xff88ff,
   bag: 0xffd700,
   nugget: 0xff8c00,
   nest: 0xaa00cc,
@@ -106,17 +111,51 @@ function drawEntity(gfx: Phaser.GameObjects.Graphics, e: Entity): void {
 
     case 'grub': {
       const grub = e as GrubEntity;
-      const vx = grub.moving
-        ? lerp(grub.fromX, grub.toX, grub.moveProgress)
-        : grub.x;
-      const vy = grub.moving
-        ? lerp(grub.fromY, grub.toY, grub.moveProgress)
-        : grub.y;
+      const vx = grub.moving ? lerp(grub.fromX, grub.toX, grub.moveProgress) : grub.x;
+      const vy = grub.moving ? lerp(grub.fromY, grub.toY, grub.moveProgress) : grub.y;
       gfx.fillStyle(COLORS.grub);
       gfx.fillRect(vx * T + 2, vy * T + 2, T - 4, T - 4);
       gfx.fillStyle(COLORS.grubDead);
       gfx.fillRect(vx * T + 5, vy * T + 5, 3, 3);
       gfx.fillRect(vx * T + T - 8, vy * T + 5, 3, 3);
+      break;
+    }
+
+    case 'burrower': {
+      const b = e as BurrowerEntity;
+      const vx = b.moving ? lerp(b.fromX, b.toX, b.moveProgress) : b.x;
+      const vy = b.moving ? lerp(b.fromY, b.toY, b.moveProgress) : b.y;
+      gfx.fillStyle(b.isDigging ? COLORS.burrowerDig : COLORS.burrower);
+      gfx.fillRect(vx * T + 1, vy * T + 1, T - 2, T - 2);
+      // Spikes
+      gfx.fillStyle(0xffd700);
+      gfx.fillTriangle(
+        vx * T + 8, vy * T,
+        vx * T + 4, vy * T + 4,
+        vx * T + 12, vy * T + 4,
+      );
+      break;
+    }
+
+    case 'spitter': {
+      const sp = e as SpitterEntity;
+      const vx = sp.moving ? lerp(sp.fromX, sp.toX, sp.moveProgress) : sp.x;
+      const vy = sp.moving ? lerp(sp.fromY, sp.toY, sp.moveProgress) : sp.y;
+      gfx.fillStyle(COLORS.spitter);
+      gfx.fillRect(vx * T + 2, vy * T + 3, T - 4, T - 6);
+      // Eye/nozzle
+      gfx.fillStyle(COLORS.spitterEye);
+      gfx.fillRect(vx * T + T - 5, vy * T + 6, 3, 4);
+      break;
+    }
+
+    case 'projectile': {
+      const proj = e as ProjectileEntity;
+      const { dx, dy } = dirDelta(proj.dir);
+      const vx = proj.x + dx * proj.moveProgress;
+      const vy = proj.y + dy * proj.moveProgress;
+      gfx.fillStyle(COLORS.projectile);
+      gfx.fillRect(vx * T + 5, vy * T + 5, T - 10, T - 10);
       break;
     }
   }
@@ -167,11 +206,11 @@ export function renderHud(
 
   hudGfx.fillStyle(COLORS.fuelEmpty);
   hudGfx.fillRect(bx, 16, barW, barH);
-  const fuelRatio = Math.max(0, p.fuel / 100);
+  const fuelRatio = Math.max(0, p.fuel / p.maxFuel);
   hudGfx.fillStyle(COLORS.fuelFull);
   hudGfx.fillRect(bx, 16, Math.floor(barW * fuelRatio), barH);
 
-  hudText.setText(`E:${p.emeralds}`);
+  hudText.setText(`E:${p.emeralds}  FL:${state.floor}  K:${state.kills}`);
 }
 
 function lerp(a: number, b: number, t: number): number {

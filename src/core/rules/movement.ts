@@ -10,7 +10,8 @@ export function applyMovement(state: RunState, input: InputSnapshot, dt: number)
   const p = state.player;
 
   if (p.moving) {
-    const speed = p.isDigging ? tuning.player.moveSpeedDirt : tuning.player.moveSpeedTunnel;
+    const digSpeed = tuning.player.moveSpeedDirt * (p.digSpeedMult ?? 1);
+    const speed = p.isDigging ? digSpeed : tuning.player.moveSpeedTunnel;
     p.moveProgress += dt * speed;
     if (p.moveProgress >= 1) {
       p.x = p.toX;
@@ -88,7 +89,7 @@ function collectPickupsAt(state: RunState, x: number, y: number, events: GameEve
       state.player.emeralds += 1;
       state.player.fuel = Math.min(
         state.player.fuel + tuning.player.fuelPerEmerald,
-        tuning.player.startFuel,
+        state.player.maxFuel,
       );
       events.push({ type: 'pickup', kind: 'gem' });
       toRemove.push(e.id);
@@ -96,14 +97,14 @@ function collectPickupsAt(state: RunState, x: number, y: number, events: GameEve
       state.player.emeralds += tuning.bag.nuggetValue;
       state.player.fuel = Math.min(
         state.player.fuel + tuning.bag.nuggetValue * tuning.player.fuelPerEmerald,
-        tuning.player.startFuel,
+        state.player.maxFuel,
       );
       events.push({ type: 'pickup', kind: 'nugget' });
       toRemove.push(e.id);
     } else if (e.kind === 'fuel') {
       state.player.fuel = Math.min(
         state.player.fuel + tuning.player.fuelPerCanister,
-        tuning.player.startFuel,
+        state.player.maxFuel,
       );
       events.push({ type: 'pickup', kind: 'fuel' });
       toRemove.push(e.id);

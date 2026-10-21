@@ -7,8 +7,11 @@ export function makeTestState(
     playerX: number;
     playerY: number;
     playerHp: number;
+    maxHp: number;
     fuel: number;
+    maxFuel: number;
     entities: Entity[];
+    floor: number;
   }> = {},
 ): RunState {
   const grid = createGrid(10, 10);
@@ -24,20 +27,21 @@ export function makeTestState(
     }
   }
 
-  const player = createPlayer(
-    overrides.playerX ?? 1,
-    overrides.playerY ?? 1,
-    overrides.playerHp ?? 3,
-    overrides.fuel ?? 100,
-  );
+  const hp = overrides.playerHp ?? 3;
+  const maxHp = overrides.maxHp ?? hp;
+  const fuel = overrides.fuel ?? 100;
+  const maxFuel = overrides.maxFuel ?? fuel;
+
+  const player = createPlayer(overrides.playerX ?? 1, overrides.playerY ?? 1, hp, maxHp, fuel, maxFuel);
 
   return {
     seed: 42,
-    floor: 1,
+    floor: overrides.floor ?? 1,
     grid,
     player,
     entities: overrides.entities ?? [],
     nextId: 100,
     phase: 'playing',
+    kills: 0,
   };
 }

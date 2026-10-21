@@ -6,12 +6,37 @@ import { createPlayer } from '../core/entities';
 import { step } from '../core/step';
 import { InputSnapshot } from '../input/actions';
 import { renderFloor, renderHud, PulseFlash } from '../render/index';
-import { makeGrub } from '../core/rules/monsters';
+import { makeGrub, makeBurrower } from '../core/rules/monsters';
+import { deathPayout } from '../core/economy';
+import { saveSave } from '../storage/index';
+import { SaveData, createFreshSave } from '../core/save';
 import { DebugPanel, DebugState, createDebugState } from '../debug/index';
+import { RunCarry } from './carry';
 import tuning from '../data/tuning.json';
 
 const STEP_DT = 1 / 60;
 const MAX_DELTA = 0.1;
+
+const HELP_TEXT = [
+  '── CONTROLS ──',
+  '',
+  'Move / Dig   Arrow keys or WASD',
+  'Pulse        Auto-fires every 1.2 s',
+  '',
+  'Esc          Pause / unpause',
+  'H            This screen',
+  '',
+  '── DEBUG ──',
+  '',
+  '`            Toggle debug panel',
+  'F2           God mode',
+  'F4           +100 emeralds',
+  'F8           Skip floor',
+  'F9           Spawn grub',
+  'F10          Spawn burrower',
+  '',
+  'Press H to close',
+].join('\n');
 
 export class DiveScene extends Phaser.Scene {
   private gameState!: RunState;
@@ -23,26 +48,47 @@ export class DiveScene extends Phaser.Scene {
   private debugPanel!: DebugPanel;
   private debugState: DebugState = createDebugState();
   private pulseFlashes: PulseFlash[] = [];
+  private paused = false;
+  private pauseOverlay!: Phaser.GameObjects.Text;
+  private helpOverlay!: Phaser.GameObjects.Text;
+  private saveData!: SaveData;
 
   constructor() {
     super({ key: 'Dive' });
   }
 
-  init(data: { seed?: number; floor?: number }): void {
-    const seed = data.seed ?? Math.floor(Math.random() * 0xffffffff);
-    const floor = data.floor ?? 1;
-    this.startFloor(seed, floor);
+  init(data: RunCarry | { seed?: number; floor?: number }): void {
+    const carry = data as RunCarry;
+    if (carry.saveData !== undefined) {
+      this.saveData = carry.saveData;
+      this.startFloor(carry.seed, carry.floor, carry);
+    } else {
+      this.saveData = createFreshSave();
+      const seed = (data as { seed?: number }).seed ?? Math.floor(Math.random() * 0xffffffff);
+      const floor = (data as { floor?: number }).floor ?? 1;
+      this.startFloor(seed, floor, null);
+    }
   }
 
-  private startFloor(seed: number, floor: number): void {
+  private startFloor(seed: number, floor: number, carry: RunCarry | null): void {
     const rng = createRNG(seed);
     const floorData = generateFloor(rng, floor);
+
+    const ups = this.saveData.upgrades;
+    const hp = carry?.hp ?? tuning.player.startHp + ups.hull;
+    const maxHp = carry?.maxHp ?? tuning.player.startHp + ups.hull;
+    const maxFuel = carry?.maxFuel ?? tuning.player.startFuel * (1 + ups.fuelTank * 0.1);
+    const fuel = carry?.fuel ?? maxFuel;
+    const pulseDamage = 1 + ups.pulseCore;
+    const digSpeedMult = 1 + ups.drillMotor * 0.1;
+
     const player = createPlayer(
       floorData.playerStart.x,
       floorData.playerStart.y,
-      tuning.player.startHp,
-      tuning.player.startFuel,
+      hp, maxHp, fuel, maxFuel, pulseDamage, digSpeedMult,
     );
+    player.emeralds = carry?.emeralds ?? 0;
+
     this.gameState = {
       seed,
       floor,
@@ -51,6 +97,7 @@ export class DiveScene extends Phaser.Scene {
       entities: floorData.entities,
       nextId: floorData.startNextId,
       phase: 'playing',
+      kills: carry?.kills ?? 0,
     };
     this.accumulator = 0;
     this.pulseFlashes = [];
@@ -67,28 +114,86 @@ export class DiveScene extends Phaser.Scene {
     this.keys = setupKeys(this);
     this.debugPanel = new DebugPanel(this);
 
-    this.input.keyboard!.on('keydown-F1', () => {
+    this.pauseOverlay = this.add
+      .text(240, 136, 'PAUSED\n\nEsc to resume', {
+        fontSize: '20px',
+        color: '#ffffff',
+        backgroundColor: '#00000099',
+        align: 'center',
+        padding: { x: 24, y: 16 },
+      })
+      .setOrigin(0.5)
+      .setDepth(50)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.helpOverlay = this.add
+      .text(240, 136, HELP_TEXT, {
+        fontSize: '10px',
+        color: '#ffffff',
+        backgroundColor: '#000000cc',
+        align: 'left',
+        padding: { x: 16, y: 12 },
+      })
+      .setOrigin(0.5)
+      .setDepth(51)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.input.keyboard!.on('keydown-H', () => {
+      const next = !this.helpOverlay.visible;
+      this.helpOverlay.setVisible(next);
+      if (next) {
+        this.paused = true;
+        this.pauseOverlay.setVisible(false);
+      } else if (this.paused) {
+        this.paused = false;
+        this.accumulator = 0;
+      }
+    });
+
+    this.input.keyboard!.on('keydown-ESC', () => {
+      if (this.helpOverlay.visible) {
+        this.helpOverlay.setVisible(false);
+        this.paused = false;
+        this.accumulator = 0;
+        return;
+      }
+      if (this.gameState.phase !== 'playing' && !this.paused) return;
+      this.paused = !this.paused;
+      this.pauseOverlay.setVisible(this.paused);
+      if (!this.paused) this.accumulator = 0;
+    });
+
+    this.input.keyboard!.on('keydown-BACKTICK', () => {
       this.debugState.enabled = !this.debugState.enabled;
     });
     this.input.keyboard!.on('keydown-F2', () => {
       this.debugState.godMode = !this.debugState.godMode;
     });
-    this.input.keyboard!.on('keydown-F3', () => {
-      this.gameState.player.emeralds += 10;
-    });
     this.input.keyboard!.on('keydown-F4', () => {
+      this.gameState.player.emeralds += 100;
+    });
+    this.input.keyboard!.on('keydown-F8', () => {
       this.gameState.phase = 'floor-clear';
     });
-    this.input.keyboard!.on('keydown-F5', () => {
+    this.input.keyboard!.on('keydown-F9', () => {
       const px = this.gameState.player.x + 3;
       const py = this.gameState.player.y;
       this.gameState.entities.push(makeGrub(this.gameState.nextId++, px, py));
+    });
+    this.input.keyboard!.on('keydown-F10', () => {
+      const px = this.gameState.player.x + 3;
+      const py = this.gameState.player.y;
+      this.gameState.entities.push(makeBurrower(this.gameState.nextId++, px, py));
     });
   }
 
   update(_time: number, deltaMs: number): void {
     const rawDt = deltaMs / 1000;
     const dt = Math.min(rawDt, MAX_DELTA);
+
+    if (this.paused) return;
 
     this.accumulator += dt;
 
@@ -117,20 +222,85 @@ export class DiveScene extends Phaser.Scene {
 
     if (this.gameState.phase !== 'playing') {
       const phase = this.gameState.phase;
-      const { seed, floor, player } = this.gameState;
+      const { seed, floor, player, kills } = this.gameState;
+
+      if (this.debugState.godMode) {
+        if (phase !== 'dead') {
+          this.gameState.player.hp = this.gameState.player.maxHp;
+          this.gameState.player.fuel = this.gameState.player.maxFuel;
+          this.gameState.phase = 'playing';
+          return;
+        }
+      }
+
       if (phase === 'dead') {
-        this.scene.start('Death', { seed, floor, emeralds: Math.floor(player.emeralds * 0.5) });
+        const salvageLvl = this.saveData.upgrades.salvageContract;
+        const banked = deathPayout(player.emeralds, salvageLvl);
+        const prospectorMult = 1 + this.saveData.upgrades.prospector * 0.1;
+        const finalBanked = Math.floor(banked * prospectorMult);
+
+        const newSave: SaveData = {
+          ...this.saveData,
+          emeralds: this.saveData.emeralds + finalBanked,
+          stats: {
+            ...this.saveData.stats,
+            runs: this.saveData.stats.runs + 1,
+            deaths: this.saveData.stats.deaths + 1,
+            bestFloor: Math.max(this.saveData.stats.bestFloor, floor),
+            totalKills: this.saveData.stats.totalKills + kills,
+          },
+        };
+        saveSave(newSave);
+
+        this.scene.start('Summary', {
+          floor,
+          emeraldsBanked: finalBanked,
+          kills,
+          seed,
+          survived: false,
+          saveData: newSave,
+        });
         return;
       }
+
+      if (phase === 'extraction') {
+        const carry: RunCarry = {
+          seed,
+          floor,
+          hp: player.hp,
+          maxHp: player.maxHp,
+          fuel: player.fuel,
+          maxFuel: player.maxFuel,
+          emeralds: player.emeralds,
+          kills,
+          saveData: this.saveData,
+        };
+        this.scene.start('Extraction', { carry });
+        return;
+      }
+
       if (phase === 'floor-clear') {
-        this.scene.start('FloorClear', { seed, floor, emeralds: player.emeralds });
+        const nextSeed = seed + floor;
+        const fuelAfterClear = Math.min(player.fuel + 15, player.maxFuel);
+        const carry: RunCarry = {
+          seed: nextSeed,
+          floor: floor + 1,
+          hp: player.hp,
+          maxHp: player.maxHp,
+          fuel: fuelAfterClear,
+          maxFuel: player.maxFuel,
+          emeralds: player.emeralds,
+          kills,
+          saveData: this.saveData,
+        };
+        this.scene.start('Dive', carry);
         return;
       }
     }
 
     if (this.debugState.godMode) {
       this.gameState.player.hp = this.gameState.player.maxHp;
-      this.gameState.player.fuel = 100;
+      this.gameState.player.fuel = this.gameState.player.maxFuel;
     }
 
     renderFloor(this.gfx, this.gameState, this.pulseFlashes);
@@ -139,6 +309,7 @@ export class DiveScene extends Phaser.Scene {
       this.gameState,
       this.debugState,
       1000 / (deltaMs || 16.67),
+      this.saveData,
     );
   }
 }

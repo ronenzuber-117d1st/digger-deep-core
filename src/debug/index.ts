@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { RunState } from '../core/run';
+import { SaveData } from '../core/save';
 
 export interface DebugState {
   enabled: boolean;
@@ -16,8 +17,8 @@ export class DebugPanel {
 
   constructor(scene: Phaser.Scene) {
     this.text = scene.add
-      .text(2, 260, '', {
-        fontSize: '9px',
+      .text(2, 252, '', {
+        fontSize: '8px',
         color: '#ffff00',
         backgroundColor: '#00000088',
         padding: { x: 2, y: 1 },
@@ -26,7 +27,7 @@ export class DebugPanel {
       .setScrollFactor(0);
   }
 
-  update(gameState: RunState, debug: DebugState, fps: number): void {
+  update(gameState: RunState, debug: DebugState, fps: number, saveData?: SaveData): void {
     if (!debug.enabled) {
       this.text.setVisible(false);
       return;
@@ -35,14 +36,17 @@ export class DebugPanel {
 
     const p = gameState.player;
     const grubCount = gameState.entities.filter((e) => e.kind === 'grub').length;
+    const burrowerCount = gameState.entities.filter((e) => e.kind === 'burrower').length;
+    const spitterCount = gameState.entities.filter((e) => e.kind === 'spitter').length;
     const nestCount = gameState.entities.filter((e) => e.kind === 'nest').length;
+    const banked = saveData?.emeralds ?? 0;
 
     this.text.setText(
       [
-        `FPS:${fps.toFixed(0)} FLOOR:${gameState.floor} SEED:${gameState.seed}`,
-        `HP:${p.hp}/${p.maxHp} FUEL:${p.fuel.toFixed(1)} E:${p.emeralds}`,
-        `GRUBS:${grubCount} NESTS:${nestCount} GOD:${debug.godMode ? 'ON' : 'OFF'}`,
-        `[F1]toggle [F2]god [F3]+em [F4]skip [F5]grub`,
+        `FPS:${fps.toFixed(0)} FL:${gameState.floor} SEED:${gameState.seed} KILLS:${gameState.kills}`,
+        `HP:${p.hp}/${p.maxHp} FUEL:${p.fuel.toFixed(1)}/${p.maxFuel.toFixed(0)} E:${p.emeralds} BANK:${banked}◆`,
+        `G:${grubCount} B:${burrowerCount} SP:${spitterCount} NESTS:${nestCount} GOD:${debug.godMode ? 'ON' : 'OFF'}`,
+        `[\`]tog [F2]god [F4]+100em [F8]skip [F9]grub [F10]burrow`,
       ].join('\n'),
     );
   }

@@ -62,30 +62,75 @@ describe('floor generation: structure', () => {
     expect(bags.length).toBeGreaterThanOrEqual(tuning.bag.perFloorMin);
     expect(bags.length).toBeLessThanOrEqual(tuning.bag.perFloorMax);
   });
-});
 
-describe('floor reachability: 1000 seeds', () => {
-  it('exit is always reachable from player start by digging', () => {
-    for (let seed = 0; seed < 1000; seed++) {
+  it('floor 1 only spawns grubs (min floor check)', () => {
+    for (let seed = 0; seed < 20; seed++) {
       const rng = createRNG(seed);
-      const { grid, playerStart } = generateFloor(rng, 1);
-      const exitX = W - 2;
-      const exitY = H - 2;
-      const reachable = canReachAll(grid, playerStart, [{ x: exitX, y: exitY }]);
-      expect(reachable).toBe(true);
+      const { entities } = generateFloor(rng, 1);
+      const burrowers = entities.filter((e) => e.kind === 'burrower');
+      const spitters = entities.filter((e) => e.kind === 'spitter');
+      expect(burrowers.length).toBe(0);
+      expect(spitters.length).toBe(0);
     }
   });
 
-  it('at least one fuel canister is always reachable from player start', () => {
-    for (let seed = 0; seed < 1000; seed++) {
+  it('floor 6+ can spawn spitters', () => {
+    let foundSpitter = false;
+    for (let seed = 0; seed < 200; seed++) {
       const rng = createRNG(seed);
-      const { grid, playerStart, entities } = generateFloor(rng, 1);
-      const fuelPositions = entities
-        .filter((e) => e.kind === 'fuel')
-        .map((e) => ({ x: e.x, y: e.y }));
-      if (fuelPositions.length === 0) continue;
-      const reachable = canReachAll(grid, playerStart, [fuelPositions[0]]);
-      expect(reachable).toBe(true);
+      const { entities } = generateFloor(rng, 6);
+      if (entities.some((e) => e.kind === 'spitter')) {
+        foundSpitter = true;
+        break;
+      }
+    }
+    expect(foundSpitter).toBe(true);
+  });
+
+  it('floor 3+ can spawn burrowers', () => {
+    let foundBurrower = false;
+    for (let seed = 0; seed < 200; seed++) {
+      const rng = createRNG(seed);
+      const { entities } = generateFloor(rng, 3);
+      if (entities.some((e) => e.kind === 'burrower')) {
+        foundBurrower = true;
+        break;
+      }
+    }
+    expect(foundBurrower).toBe(true);
+  });
+});
+
+describe('floor reachability: floors 1-20, 200 seeds each', () => {
+  it('exit is always reachable from player start by digging', () => {
+    for (let floor = 1; floor <= 20; floor++) {
+      for (let seed = 0; seed < 200; seed++) {
+        const rng = createRNG(seed * 10000 + floor);
+        const { grid, playerStart } = generateFloor(rng, floor);
+        const exitX = W - 2;
+        const exitY = H - 2;
+        const reachable = canReachAll(grid, playerStart, [{ x: exitX, y: exitY }]);
+        if (!reachable) {
+          throw new Error(`Floor ${floor} seed ${seed}: exit not reachable`);
+        }
+      }
+    }
+  });
+
+  it('at least one fuel canister is always reachable', () => {
+    for (let floor = 1; floor <= 20; floor++) {
+      for (let seed = 0; seed < 200; seed++) {
+        const rng = createRNG(seed * 10000 + floor);
+        const { grid, playerStart, entities } = generateFloor(rng, floor);
+        const fuelPositions = entities
+          .filter((e) => e.kind === 'fuel')
+          .map((e) => ({ x: e.x, y: e.y }));
+        if (fuelPositions.length === 0) continue;
+        const reachable = canReachAll(grid, playerStart, [fuelPositions[0]]);
+        if (!reachable) {
+          throw new Error(`Floor ${floor} seed ${seed}: fuel not reachable`);
+        }
+      }
     }
   });
 });
@@ -103,5 +148,13 @@ describe('seed determinism', () => {
     const a = generateFloor(createRNG(1), 1);
     const b = generateFloor(createRNG(2), 1);
     expect(a.entities.length !== b.entities.length || JSON.stringify(a.entities) !== JSON.stringify(b.entities)).toBe(true);
+  });
+
+  it('floors have more nests at higher floors', () => {
+    const lowFloor = generateFloor(createRNG(42), 1);
+    const highFloor = generateFloor(createRNG(42), 15);
+    const lowNests = lowFloor.entities.filter((e) => e.kind === 'nest').length;
+    const highNests = highFloor.entities.filter((e) => e.kind === 'nest').length;
+    expect(highNests).toBeGreaterThanOrEqual(lowNests);
   });
 });

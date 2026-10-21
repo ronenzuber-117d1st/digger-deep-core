@@ -35,11 +35,14 @@ export function applyBags(state: RunState, dt: number): GameEvent[] {
 
       const grubHit = findGrubAt(state, bag.x, bag.y, toRemove);
       if (grubHit !== null) {
-        events.push({ type: 'kill', targetId: grubHit.id, kind: 'grub' });
+        events.push({ type: 'kill', targetId: grubHit.id, kind: grubHit.kind });
         toRemove.add(grubHit.id);
         toRemove.add(bag.id);
         spawnNuggets(state, bag.x, bag.y, toAdd);
         events.push({ type: 'bag-break', x: bag.x, y: bag.y });
+        if (grubHit.kind === 'grub' || grubHit.kind === 'burrower' || grubHit.kind === 'spitter') {
+          state.kills++;
+        }
         broken = true;
         break;
       }
@@ -126,10 +129,13 @@ function findGrubAt(
   x: number,
   y: number,
   removed: Set<number>,
-): { id: number } | null {
+): { id: number; kind: 'grub' | 'burrower' | 'spitter' } | null {
   for (const e of state.entities) {
-    if (e.kind === 'grub' && e.x === x && e.y === y && !removed.has(e.id)) {
-      return e;
+    if (
+      (e.kind === 'grub' || e.kind === 'burrower' || e.kind === 'spitter') &&
+      e.x === x && e.y === y && !removed.has(e.id)
+    ) {
+      return e as { id: number; kind: 'grub' | 'burrower' | 'spitter' };
     }
   }
   return null;

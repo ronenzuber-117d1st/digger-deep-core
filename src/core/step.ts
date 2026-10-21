@@ -2,6 +2,7 @@ import { RunState } from './run';
 import { InputSnapshot } from '../input/actions';
 import { GameEvent } from './events';
 import { tileAt, TileType } from './grid';
+import { isExtractionFloor } from './economy';
 import {
   applyMovement,
   applyBags,
@@ -11,6 +12,7 @@ import {
   applyContactDamage,
   applyMonsters,
   applyNests,
+  applyProjectiles,
 } from './rules/index';
 
 export type { GameEvent };
@@ -30,6 +32,7 @@ export function step(
   applyNuggetTimers(state, dt);
   events.push(...applyMonsters(state, dt));
   events.push(...applyNests(state, dt));
+  events.push(...applyProjectiles(state, dt));
   events.push(...applyFuel(state, dt));
   events.push(...applyContactDamage(state));
 
@@ -42,9 +45,14 @@ export function step(
 
   const playerTile = tileAt(state.grid, state.player.x, state.player.y);
   if (!state.player.moving && playerTile === TileType.Exit) {
-    state.phase = 'floor-clear';
-    state.player.fuel = Math.min(state.player.fuel + 15, 100);
-    events.push({ type: 'floor-clear' });
+    if (isExtractionFloor(state.floor)) {
+      state.phase = 'extraction';
+      events.push({ type: 'extraction' });
+    } else {
+      state.phase = 'floor-clear';
+      state.player.fuel = Math.min(state.player.fuel + 15, state.player.maxFuel);
+      events.push({ type: 'floor-clear' });
+    }
   }
 
   return { state, events };

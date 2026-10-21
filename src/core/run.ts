@@ -1,7 +1,7 @@
 import { Grid } from './grid';
 import { PlayerEntity, Entity } from './entities';
 
-export type RunPhase = 'playing' | 'dead' | 'floor-clear';
+export type RunPhase = 'playing' | 'dead' | 'floor-clear' | 'extraction';
 
 export interface RunState {
   seed: number;
@@ -11,4 +11,5 @@ export interface RunState {
   entities: Entity[];
   nextId: number;
   phase: RunPhase;
+  kills: number;
 }
