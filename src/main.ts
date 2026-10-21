@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/boot';
+import { DiveScene } from './scenes/dive';
+import { DeathScene } from './scenes/death';
+import { FloorClearScene } from './scenes/floor-clear';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -11,7 +14,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene],
+  scene: [BootScene, DiveScene, DeathScene, FloorClearScene],
 };
 
 new Phaser.Game(config);

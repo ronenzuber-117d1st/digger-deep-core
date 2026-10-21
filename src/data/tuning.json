@@ -1,0 +1,49 @@
+{
+  "floor": { "width": 30, "height": 17, "tileSize": 16 },
+  "player": {
+    "startHp": 3,
+    "startFuel": 100,
+    "moveSpeedTunnel": 6,
+    "moveSpeedDirt": 4,
+    "invulDuration": 1.0,
+    "fuelDrainRate": 1,
+    "fuelEmptyDamageRate": 1,
+    "fuelPerEmerald": 2,
+    "fuelPerCanister": 20,
+    "fuelPerFloorClear": 15
+  },
+  "pulse": {
+    "interval": 1.2,
+    "range": 3,
+    "damage": 1
+  },
+  "bag": {
+    "fallSpeed": 8,
+    "breakMinFall": 2,
+    "nuggetsOnBreak": 5,
+    "nuggetValue": 3,
+    "nuggetLifetime": 8.0,
+    "perFloorMin": 3,
+    "perFloorMax": 6
+  },
+  "grub": {
+    "hp": 2,
+    "speed": 3,
+    "damage": 1,
+    "pathfindInterval": 0.5
+  },
+  "nest": {
+    "hp": 1,
+    "spawnInterval": 10,
+    "maxSpawns": 3,
+    "perFloorBase": 2,
+    "perFloorScale": 5
+  },
+  "gem": {
+    "perFloor": 8
+  },
+  "fuel": {
+    "perFloorMin": 1,
+    "perFloorMax": 2
+  }
+}

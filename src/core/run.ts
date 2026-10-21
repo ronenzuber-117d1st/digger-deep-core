@@ -1,9 +1,14 @@
-import { GameEntities } from './entities';
 import { Grid } from './grid';
+import { PlayerEntity, Entity } from './entities';
+
+export type RunPhase = 'playing' | 'dead' | 'floor-clear';
 
 export interface RunState {
   seed: number;
   floor: number;
-  entities: GameEntities;
   grid: Grid;
+  player: PlayerEntity;
+  entities: Entity[];
+  nextId: number;
+  phase: RunPhase;
 }
