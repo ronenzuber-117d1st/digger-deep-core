@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Core – Game Design Doc</title>
+<style>
+:root{--bg:#f6f4ee;--card:#ffffff;--text:#1f2430;--muted:#5d6475;--accent:#d9822b;--accent2:#2b8a6e;--border:#e2ded3;--code:#efece3;--warn:#b4531f}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1c1f28;--text:#e8e6df;--muted:#9aa1b2;--accent:#f0a04b;--accent2:#4fc3a1;--border:#2c3040;--code:#242837;--warn:#f0a04b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 72px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:2rem;margin:0;color:var(--accent)}
+h2{margin-top:2.4rem;border-bottom:2px solid var(--border);padding-bottom:6px}
+h3{margin:14px 0 4px;color:var(--accent2)}
+.sub{color:var(--muted);margin-top:4px}
+button#t{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin:12px 0}
+.note{border-left:4px solid var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+ul,ol{padding-left:20px;margin:6px 0}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:.93rem;margin:10px 0}
+td,th{border-bottom:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+.tablewrap{overflow-x:auto}
+pre{background:var(--code);padding:14px;border-radius:10px;overflow:auto;font-size:.84rem;white-space:pre-wrap}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em}
+.tag{display:inline-block;background:var(--code);border-radius:6px;padding:1px 8px;font-size:.78rem;color:var(--accent2);margin-right:4px}
+#pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+#pal div{border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:.72rem;text-align:center;background:var(--card)}
+#pal span{display:block;height:34px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Deep Core – Game Design Doc</h1>
+    <div class="sub">Working title · roguelite remake of Digger · pixel art · browser first · solo project · v0.1</div>
+  </div>
+  <button id="t" aria-label="Toggle dark mode">🌓 Dark / Light</button>
+</header>
+
+<h2>0. Assumptions and changes vs. the plan</h2>
+<div class="card note">
+<b>Decisions locked (your defaults):</b>
+<ul>
+<li><b>Combat:</b> gold bags stay the signature weapon, plus one auto-firing <i>drill pulse</i> that upgrades during a run.</li>
+<li><b>Death:</b> keep 50% of emeralds. Extraction keeps 100%.</li>
+<li><b>Art:</b> 16×16 tiles, 32-colour palette, one shared palette file.</li>
+<li><b>Success:</b> a friend finishes a first dive unaided and starts a second one voluntarily.</li>
+<li><b>Crew:</b> engineer, cartographer, mysterious radio voice.</li>
+<li><b>Name:</b> working title "Deep Core"; final name before release.</li>
+</ul>
+<b>Assumptions I added (veto any):</b>
+<ul>
+<li><b>Single-screen floors</b> (30×17 tiles, like the original) instead of scrolling levels. It removes camera and scrolling risk. The camera is used only for shake and zoom.</li>
+<li><b>Original monsters, names and art.</b> Behaviours are inspired by the classic, but nothing is copied from it.</li>
+<li><b>Light unit tests</b> for the game logic (grid, bag physics, economy). No formal QA tooling.</li>
+<li>Keyboard first. Touch and gamepad come later via an input abstraction.</li>
+</ul>
+</div>
+
+<h2>1. Product goal</h2>
+<div class="card">Ship a polished, replayable browser roguelite in about 5 weeks (7 with buffer), in which a 6 to 12 minute dive is fun on its own and the upgrade loop makes players want "one more dive". There is no revenue goal. The goal is a finished, shareable game and a good vibe-coding project.</div>
+
+<h2>2. Target audience</h2>
+<ul>
+<li><b>Primary:</b> you and friends. Players who like Vampire Survivors and Dead Cells, enjoy short sessions, and may remember classic DOS games.</li>
+<li><b>Secondary:</b> itch.io visitors browsing for quick pixel-art roguelites.</li>
+<li><b>Behaviour:</b> keyboard on desktop, sessions of 10 to 30 minutes, no tutorial patience. The first dive must teach itself.</li>
+</ul>
+
+<h2>3. Problem and value proposition</h2>
+<div class="grid">
+<div class="card"><h3>Problem</h3>The 1983 original is fun, but it has no progression, one-hit deaths, and dated visuals. Many modern roguelites are bigger and more complex than a casual session needs.</div>
+<div class="card"><h3>Value</h3>A one-screen-per-floor digging action game with a satisfying signature move (crushing monsters with gold bags), real build variety through run-time picks, and a permanent upgrade loop. Add a light story to give the dives meaning.</div>
+</div>
+
+<h2>4. Core use cases</h2>
+<table><tr><th>#</th><th>Use case</th><th>Trigger</th><th>Goal</th></tr>
+<tr><td>1</td><td>Start a dive</td><td>Player presses Dive at base</td><td>Enter floor 1 with current permanent upgrades</td></tr>
+<tr><td>2</td><td>Clear a floor</td><td>Floor starts</td><td>Dig, gather emeralds, avoid or kill monsters, reach the exit shaft</td></tr>
+<tr><td>3</td><td>Kill with a gold bag</td><td>Monster below an undermined bag</td><td>Free kill plus nuggets, and a risk-reward decision</td></tr>
+<tr><td>4</td><td>Pick a run upgrade</td><td>Every second floor</td><td>Choose 1 of 3 to shape the build</td></tr>
+<tr><td>5</td><td>Die or extract</td><td>HP 0, or reaching an extraction point</td><td>Bank emeralds (50% or 100%), see summary</td></tr>
+<tr><td>6</td><td>Upgrade at base</td><td>Return to base</td><td>Spend emeralds on permanent upgrades, watch crew scenes</td></tr>
+</table>
+
+<h2>5. MVP features</h2>
+<div class="tablewrap"><table><tr><th>Feature</th><th>Description</th><th>Why essential</th></tr>
+<tr><td>Grid digging</td><td>Move in 4 directions, tunnelling through dirt</td><td>It is the game</td></tr>
+<tr><td>Gold bags</td><td>Fall, push, crush, break into nuggets</td><td>The signature mechanic</td></tr>
+<tr><td>Drill pulse</td><td>Auto-fire attack in the facing direction</td><td>Gives you an answer to monsters when no bag is handy</td></tr>
+<tr><td>Fuel timer</td><td>Drains over time and forces forward motion</td><td>Prevents stalling and sets the pace</td></tr>
+<tr><td>3 monster types</td><td>Grub, Burrower, Spitter</td><td>Variety in threat</td></tr>
+<tr><td>Procedural floors</td><td>Seeded generation</td><td>Replayability</td></tr>
+<tr><td>Run picks</td><td>1 of 3 every 2 floors</td><td>Build variety, the Vampire Survivors hook</td></tr>
+<tr><td>Base + permanent upgrades</td><td>Spend emeralds, save progress</td><td>The "one more dive" loop</td></tr>
+<tr><td>Dialogue scenes</td><td>JSON-driven crew lines</td><td>The light story layer</td></tr>
+</table></div>
+
+<h2>6. Core rules spec (v0.1, tune in playtests)</h2>
+<h3>World</h3>
+<ul>
+<li>Floor: 30×17 tiles of 16 px (internal 480×272, integer-scaled). Tile types: <code>dirt</code>, <code>empty</code>, <code>bedrock</code> (border), plus biome tiles.</li>
+<li>Player starts at the top-left open area. The exit shaft is at the bottom-right.</li>
+<li>Floors per biome: 5. Total floors in a full run: 20.</li>
+</ul>
+<h3>Movement and digging</h3>
+<ul>
+<li>4-direction, tile-aligned movement. Open tunnel: 6 tiles/s. Digging dirt: 4 tiles/s (upgradeable).</li>
+</ul>
+<h3>Fuel</h3>
+<ul>
+<li>Starts at 100 and drains 1/s. Emerald +2, canister +20 (1 to 2 per floor), clearing a floor +15.</li>
+<li>At 0, you take 1 damage per second. This is a soft fail, not instant death.</li>
+<li>Target dive length: 6 to 12 minutes for a typical dive.</li>
+</ul>
+<h3>Health</h3>
+<ul><li>3 HP. After taking damage you get 1.0 s of invulnerability.</li></ul>
+<h3>Gold bags</h3>
+<ul>
+<li>3 to 6 per floor, embedded in dirt. If the tile below becomes empty, the bag starts to fall.</li>
+<li>Falls 1 tile: stays intact and can be pushed sideways by the player.</li>
+<li>Falls 2 or more tiles, or lands on a monster: it breaks and spills 5 nuggets (3 emeralds each).</li>
+<li>Any falling bag kills a non-boss monster it lands on.</li>
+<li>Nuggets <b>vanish after 8 seconds</b>. Players must go and grab them. This is the "risk" in the risk-reward.</li>
+<li>A bag landing on the player deals 1 damage.</li>
+</ul>
+<h3>Drill pulse</h3>
+<ul><li>Fires every 1.2 s in the facing direction. Range 3 tiles, 1 damage, stops at the first target.</li></ul>
+<h3>Death and extraction</h3>
+<ul>
+<li>Death at HP 0: keep 50% of emeralds. Extraction points appear at floors 5, 10, 15 and 20: keep 100%, and you can also choose to continue.</li>
+</ul>
+
+<h3>Monsters</h3>
+<div class="tablewrap"><table><tr><th>Name</th><th>HP</th><th>Behaviour</th><th>From floor</th></tr>
+<tr><td>Grub</td><td>2</td><td>Chases the player through existing tunnels at 3 tiles/s. Contact damage 1.</td><td>1</td></tr>
+<tr><td>Burrower</td><td>3</td><td>Same, but digs through dirt if it has had no path to you for 5 s. Speed 2.5.</td><td>3</td></tr>
+<tr><td>Spitter</td><td>2</td><td>Stays in tunnels and fires a projectile along a line every 2.5 s. Damage 1.</td><td>6</td></tr>
+<tr><td>Drifter</td><td>4</td><td>Floats through dirt slowly (1.5 tiles/s). Ignores bags unless they hit it directly.</td><td>11</td></tr>
+</table></div>
+<ul><li><b>Nests:</b> 2 + floor/5 hidden tiles per floor. Each releases a monster every 10 s, up to 3 each. Destroying a nest (1 pulse hit) stops it.</li></ul>
+
+<h3>Biomes and bosses</h3>
+<div class="tablewrap"><table><tr><th>Floors</th><th>Biome</th><th>Hazard</th><th>Boss / end</th></tr>
+<tr><td>1–5</td><td>Topsoil</td><td>None, a learning ground</td><td>Extraction point</td></tr>
+<tr><td>6–10</td><td>Flooded Caverns</td><td>Water tiles: 50% slower and extra 1 fuel/s</td><td><b>Drillworm</b> (HP 40). It surfaces from the dirt, and a falling bag deals 20.</td></tr>
+<tr><td>11–15</td><td>Crystal Depths</td><td>Crystals are undiggable until a pulse shatters them, and they reflect projectiles</td><td>Extraction point</td></tr>
+<tr><td>16–20</td><td>The Ruins</td><td>Pressure plates drop heavy stones (they act like bags)</td><td><b>The Heart</b> (HP 60). Pulses shockwave rings, and bags deal 15.</td></tr>
+</table></div>
+
+<h2>7. Upgrades and economy</h2>
+<h3>Run-time picks (choose 1 of 3, every 2 floors)</h3>
+<div class="tablewrap"><table><tr><th>Upgrade</th><th>Effect</th></tr>
+<tr><td>Sharper Pulse</td><td>+1 pulse damage</td></tr>
+<tr><td>Rapid Pulse</td><td>Pulse cooldown −20%</td></tr>
+<tr><td>Wide Pulse</td><td>Pulse hits a 3-wide line</td></tr>
+<tr><td>Magnet</td><td>Collect emeralds and nuggets within 3 tiles</td></tr>
+<tr><td>Shield</td><td>Absorbs 1 hit, recharges each floor</td></tr>
+<tr><td>Tile Bomb</td><td>Press Space to place a bomb, 1 per floor, clears a 3×3 area</td></tr>
+<tr><td>Efficient Engine</td><td>Fuel drains 25% slower</td></tr>
+<tr><td>Gold Rush</td><td>Nuggets are worth ×2</td></tr>
+<tr><td>Quick Drill</td><td>+25% dig speed</td></tr>
+<tr><td>Lantern</td><td>Reveals nests and bags within 6 tiles</td></tr>
+<tr><td>Heavy Bags</td><td>Bags deal +50% damage to bosses and crush through 1 extra tile</td></tr>
+<tr><td>Second Wind</td><td>Revive once at 1 HP</td></tr>
+</table></div>
+<h3>Permanent upgrades (base)</h3>
+<div class="tablewrap"><table><tr><th>Upgrade</th><th>Levels</th><th>Effect per level</th></tr>
+<tr><td>Hull</td><td>3</td><td>+1 max HP</td></tr>
+<tr><td>Fuel Tank</td><td>5</td><td>+10% starting fuel</td></tr>
+<tr><td>Drill Motor</td><td>5</td><td>+10% dig speed</td></tr>
+<tr><td>Pulse Core</td><td>3</td><td>+1 pulse damage</td></tr>
+<tr><td>Prospector</td><td>5</td><td>+10% emerald value</td></tr>
+<tr><td>Salvage Contract</td><td>3</td><td>Keep +10% on death (50% → 80%)</td></tr>
+<tr><td>Extra Pick</td><td>1</td><td>Start every dive with 1 free run pick</td></tr>
+<tr><td>Lantern Mount</td><td>1</td><td>Lantern effect unlocked for all dives</td></tr>
+</table></div>
+<ul>
+<li><b>Cost formula:</b> <code>cost = baseCost × 1.6^level</code>. Base costs: 60 (cheap), 90 (mid), 150 (expensive).</li>
+<li><b>Target income:</b> an average first dive earns about 100 to 150 emeralds, so the first upgrade is affordable right after run 1. Floor value scales by +10% per floor.</li>
+</ul>
+
+<h2>8. Story and crew (light)</h2>
+<div class="grid">
+<div class="card"><h3>Tessa, the engineer</h3>Gruff and practical. Runs the upgrade bench. Short, funny lines.</div>
+<div class="card"><h3>Orin, the cartographer</h3>Nervous and curious. Comments on biomes and reveals lore about what lives below.</div>
+<div class="card"><h3>"Static", the radio voice</h3>Unknown. Starts to speak after floor 5, encouraging you to go deeper.</div>
+</div>
+<ul>
+<li><b>Premise:</b> the mine has no recorded bottom. Something at the Core is humming, and the crew wants to know what.</li>
+<li><b>Ending (no branching):</b> the Heart is an ancient power source, and Static is its caretaker AI. Defeating the Heart shuts it down. Static thanks you, and the crew celebrates. A "dive again" option stays unlocked.</li>
+<li><b>Delivery:</b> about 15 short scenes of 1 to 6 lines, triggered by <code>firstDeath</code>, <code>reachedFloor(N)</code>, <code>afterBoss</code>, and <code>returnToBase(count)</code>.</li>
+</ul>
+
+<h2>9. Player flow</h2>
+<ol>
+<li>Title → Base (permanent upgrades, crew scenes, Dive button).</li>
+<li>Dive: floor 1 → dig and fight → reach the exit shaft → next floor. Every 2nd floor shows the run-pick screen.</li>
+<li>Extraction point (floors 5, 10, 15, 20): choose to extract or continue.</li>
+<li>Death: summary (floors, emeralds banked, kills) → Base.</li>
+<li>Error and edge states: save missing or corrupt → start a fresh save and show a notice. Tab hidden → auto-pause.</li>
+</ol>
+
+<h2>10. Art, audio and UX</h2>
+<ul>
+<li><b>Resolution:</b> 480×272 internal, integer scaled, nearest-neighbour. Tiles and characters 16×16, bosses 48×48.</li>
+<li><b>Style rules:</b> max 32 colours from one shared palette (below). No anti-aliasing and no gradients. One light direction (top-left). Outlines in a dark palette colour.</li>
+<li><b>Palette:</b> the 32 colours below are the single source of truth. Every generated asset gets quantised to this palette before it enters the project.</li>
+<li><b>Audio:</b> jsfxr for effects. Two music loops (base and dive), plus one for bosses. All must have a clear license.</li>
+<li><b>Accessibility:</b> rebindable keys, a screen shake toggle, colour-blind-safe monster and hazard shapes (not colour alone), and independent music and SFX volume.</li>
+</ul>
+<div id="pal"></div>
+
+<h2>11. Technical requirements</h2>
+<ul>
+<li><b>Stack:</b> Phaser 3, TypeScript, Vite, Vitest. Static hosting (itch.io or GitHub Pages).</li>
+<li><b>Architecture:</b> a pure-TypeScript <code>core/</code> (grid, entities, rules, RNG, economy) with no Phaser imports, fixed 60 Hz update. A <code>render/</code> layer that reads the state and draws. <code>scenes/</code> for UI flow. <code>data/</code> for JSON (upgrades, monsters, biomes, dialogue).</li>
+<li><b>Determinism:</b> seeded RNG (<code>mulberry32</code>). The same seed produces the same floor. Seed shown on the summary screen.</li>
+<li><b>Input:</b> an abstraction layer (<code>Action</code> enum). Keyboard: arrows/WASD, Space (bomb), Esc (pause). Touch and gamepad later.</li>
+<li><b>Performance targets:</b> 60 fps on a mid-range laptop. Bundle under 5 MB. Load time under 3 s.</li>
+<li><b>Debug panel (from day 1):</b> FPS, depth skip, god mode, spawn control, seed set, add emeralds.</li>
+<li><b>Platform:</b> desktop Chrome/Firefox/Edge. Mobile later via Capacitor.</li>
+</ul>
+
+<h2>12. Data model</h2>
+<pre>interface SaveData {
+  version: number;              // for migrations
+  emeralds: number;             // banked currency
+  upgrades: Record&lt;PermanentUpgradeId, number&gt;;  // level per upgrade
+  storyFlags: string[];         // seen scene ids
+  stats: { runs: number; deaths: number; bestFloor: number; bossesKilled: string[] };
+  settings: { musicVol: number; sfxVol: number; shake: boolean; keys: Record&lt;Action, string&gt; };
+}
+interface RunState {
+  seed: number; floor: number; hp: number; maxHp: number;
+  fuel: number; emeraldsCarried: number;
+  picks: RunUpgradeId[];        // chosen run-time upgrades
+  rngState: number;
+}
+interface FloorState {
+  tiles: TileType[][];          // 30 x 17
+  entities: Entity[];           // player, monsters, bags, nuggets, pickups, nests
+  biome: BiomeId;
+}
+interface UpgradeDef { id: string; kind: 'run' | 'permanent'; maxLevel: number; baseCost?: number; effect: Effect[]; }
+interface MonsterDef { id: string; hp: number; speed: number; behaviour: string; minFloor: number; }
+interface BiomeDef  { id: string; floors: [number, number]; hazards: string[]; monsterPool: string[]; boss?: string; }
+interface DialogueScene { id: string; trigger: Trigger; lines: { speaker: string; text: string }[]; }</pre>
+<ul><li><b>Storage:</b> <code>localStorage</code> key <code>deepcore.save.v1</code>, always wrapped in try/catch, with a version field and a migration function. Export/import of the save as a JSON file is a nice-to-have.</li></ul>
+
+<h2>13. Light test strategy</h2>
+<ul>
+<li><b>Unit tests (Vitest) on <code>core/</code>:</b> bag fall, push and break rules; fuel drain; economy and cost formula; seed determinism; save migration.</li>
+<li><b>Playtest checklist per week:</b> a full dive without crashes, no soft-locks (can always reach the exit), the fuel timer is fair, the first dive is clearable.</li>
+<li><b>Soft-lock guard:</b> the generator must guarantee that the exit and at least one fuel canister can be reached by digging.</li>
+</ul>
+
+<h2>14. Success metrics</h2>
+<table><tr><th>Metric</th><th>Target</th></tr>
+<tr><td>Friend completes floor 1 unaided</td><td>4 of 5 testers</td></tr>
+<tr><td>Starts a 2nd dive voluntarily</td><td>4 of 5 testers (the primary success metric)</td></tr>
+<tr><td>Median dive length</td><td>6 to 12 min</td></tr>
+<tr><td>Frame rate / load</td><td>60 fps, under 3 s load</td></tr>
+<tr><td>Full-run completion</td><td>You can beat the Heart in about 15 to 20 dives</td></tr>
+</table>
+
+<h2>15. Risks</h2>
+<table><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr>
+<tr><td>Scope creep (biomes, bosses, story)</td><td>High</td><td>Anything outside the MVP list waits until after the week 3 milestone.</td></tr>
+<tr><td>AI art style drift</td><td>High</td><td>Lock the palette now, quantise every asset, reject off-style sprites.</td></tr>
+<tr><td>Week 3 overload (2 biomes + picks + art)</td><td>Medium</td><td>Move one biome or the art pass into week 4 if week 2 slips past day 10.</td></tr>
+<tr><td>Balance takes longer than coding</td><td>High</td><td>Data-driven JSON for numbers, and a debug panel to tweak quickly.</td></tr>
+<tr><td>Soft-locks in generated floors</td><td>Medium</td><td>Reachability check in the generator, plus unit tests.</td></tr>
+<tr><td>IP exposure from the "Digger" name and original assets</td><td>Medium</td><td>Original art and sound only, and a distinct final title.</td></tr>
+</table>
+
+<h2>16. Roadmap</h2>
+<div class="grid">
+<div class="card"><h3>MVP (weeks 1–3)</h3>Playable dive loop, 3 monsters, procedural floors, base with upgrades, run picks, 3 biomes, first art pass.</div>
+<div class="card"><h3>v1 (weeks 4–5)</h3>Both bosses, 4th biome, crew story and ending, audio, juice, balance, deploy.</div>
+<div class="card"><h3>Later</h3>Touch controls and mobile build, desktop build, daily seeded dive, Hebrew localisation, New Game+.</div>
+</div>
+
+<h2>17. Updated first prompt for Claude Code</h2>
+<pre>Create a Phaser 3 + TypeScript + Vite + Vitest project "deep-core". Follow deep-core-game-design.html.
+Week 1 goal: a playable ~3 minute dive with placeholder coloured rectangles.
+- Pure-TS core/ (grid, entities, rules, seeded RNG mulberry32) with no Phaser imports; fixed 60 Hz update. render/ reads state and draws.
+- Floor is 30x17 tiles of 16px (480x272, integer scaled). Player moves tile-aligned; digging dirt 4 tiles/s, open tunnel 6 tiles/s.
+- Fuel: starts 100, drains 1/s, emerald +2; at 0 take 1 dmg/s. HP 3 with 1s invulnerability.
+- Gold bags: fall when the tile below is empty; fall 1 tile = intact and pushable; 2+ tiles or landing on a monster = breaks into 5 nuggets (3 emeralds each, vanish after 8s). Any falling bag kills a non-boss monster.
+- Drill pulse: auto-fires every 1.2s in facing direction, range 3 tiles, 1 damage.
+- Monster: Grub (HP 2, 3 tiles/s, chases through tunnels, contact dmg 1) + hidden nests that spawn one every 10s (max 3).
+- Exit shaft bottom-right ends the floor. Death and win screens.
+- Debug panel: FPS, floor skip, god mode, spawn control, seed set.
+- Unit tests for bag physics, fuel drain and seed determinism.
+- Put all tunable numbers in data/*.json.
+Write CLAUDE.md with architecture and these rules. Work autonomously; stop only if you need a decision from me.</pre>
+
+</div>
+<script>
+(function(){
+  var r=document.documentElement,k="dc-gdd-theme",s=null;
+  try{s=localStorage.getItem(k)}catch(e){}
+  if(!s){s=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}
+  r.setAttribute("data-theme",s);
+  document.getElementById("t").addEventListener("click",function(){
+    s=r.getAttribute("data-theme")==="dark"?"light":"dark";
+    r.setAttribute("data-theme",s);
+    try{localStorage.setItem(k,s)}catch(e){}
+  });
+  var cols=["#0d0b14","#1b1630","#2c2347","#43365f","#2a1a14","#4a2c1e","#6b4128","#8f5a33","#b57a46","#d9a066","#0f2e24","#1d5c3c","#2f8f4e","#5bc46a","#a8e68a","#12264a","#1d4a8a","#2f80c4","#5bb8e8","#a8e4f5","#5a1420","#a3262e","#e0502f","#f28f2e","#f7c94b","#f4eed9","#b9b3a5","#78768a","#6b3fa0","#b66be0","#ffffff","#e84a8a"];
+  var p=document.getElementById("pal");
+  cols.forEach(function(c,i){
+    var d=document.createElement("div");
+    d.innerHTML='<span style="background:'+c+'"></span>'+(i+1)+' · '+c;
+    p.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>
