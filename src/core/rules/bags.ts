@@ -18,8 +18,13 @@ export function applyBags(state: RunState, dt: number): GameEvent[] {
       const below = tileAt(state.grid, bag.x, bag.y + 1);
       const bagBelow = findBagAt(state, bag.x, bag.y + 1, toRemove);
       if (below === TileType.Empty && bagBelow === null) {
-        bag.falling = true;
-        bag.fallProgress = 0;
+        bag.pendingFallTimer -= dt;
+        if (bag.pendingFallTimer <= 0) {
+          bag.falling = true;
+          bag.fallProgress = 0;
+        }
+      } else {
+        bag.pendingFallTimer = tuning.bag.fallDelay;
       }
     }
 
@@ -64,6 +69,7 @@ export function applyBags(state: RunState, dt: number): GameEvent[] {
         } else {
           bag.falling = false;
           bag.fallProgress = 0;
+          bag.pendingFallTimer = tuning.bag.fallDelay;
         }
         broken = true;
       }

@@ -5,7 +5,7 @@ import { createRNG } from '../core/rng';
 import { createPlayer } from '../core/entities';
 import { step } from '../core/step';
 import { InputSnapshot } from '../input/actions';
-import { renderFloor, renderHud, PulseFlash } from '../render/index';
+import { renderFloor, renderHud, PulseFlash, HUD_HEIGHT } from '../render/index';
 import { makeGrub, makeBurrower } from '../core/rules/monsters';
 import { deathPayout } from '../core/economy';
 import { saveSave } from '../storage/index';
@@ -23,7 +23,8 @@ const HELP_TEXT = [
   'Move / Dig   Arrow keys or WASD',
   'Pulse        Auto-fires every 1.2 s',
   '',
-  'Esc          Pause / unpause',
+  'P            Pause / unpause',
+  'Esc          Exit to menu',
   'H            This screen',
   '',
   '── DEBUG ──',
@@ -49,8 +50,10 @@ export class DiveScene extends Phaser.Scene {
   private debugState: DebugState = createDebugState();
   private pulseFlashes: PulseFlash[] = [];
   private paused = false;
+  private confirmingExit = false;
   private pauseOverlay!: Phaser.GameObjects.Text;
   private helpOverlay!: Phaser.GameObjects.Text;
+  private confirmOverlay!: Phaser.GameObjects.Text;
   private saveData!: SaveData;
 
   constructor() {
@@ -104,7 +107,7 @@ export class DiveScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.gfx = this.add.graphics().setDepth(0);
+    this.gfx = this.add.graphics().setDepth(0).setY(HUD_HEIGHT);
     this.hudGfx = this.add.graphics().setDepth(10).setScrollFactor(0);
     this.hudText = this.add
       .text(72, 4, '', { fontSize: '9px', color: '#ffffff' })
@@ -114,8 +117,10 @@ export class DiveScene extends Phaser.Scene {
     this.keys = setupKeys(this);
     this.debugPanel = new DebugPanel(this);
 
+    const GAME_CENTER_Y = HUD_HEIGHT + 136;
+
     this.pauseOverlay = this.add
-      .text(240, 136, 'PAUSED\n\nEsc to resume', {
+      .text(240, GAME_CENTER_Y, 'PAUSED\n\nP to resume', {
         fontSize: '20px',
         color: '#ffffff',
         backgroundColor: '#00000099',
@@ -128,7 +133,7 @@ export class DiveScene extends Phaser.Scene {
       .setVisible(false);
 
     this.helpOverlay = this.add
-      .text(240, 136, HELP_TEXT, {
+      .text(240, GAME_CENTER_Y, HELP_TEXT, {
         fontSize: '10px',
         color: '#ffffff',
         backgroundColor: '#000000cc',
@@ -140,16 +145,37 @@ export class DiveScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setVisible(false);
 
+    this.confirmOverlay = this.add
+      .text(240, GAME_CENTER_Y, 'Exit to menu?\n\nY — yes     N — cancel', {
+        fontSize: '18px',
+        color: '#ffffff',
+        backgroundColor: '#00000099',
+        align: 'center',
+        padding: { x: 24, y: 16 },
+      })
+      .setOrigin(0.5)
+      .setDepth(52)
+      .setScrollFactor(0)
+      .setVisible(false);
+
     this.input.keyboard!.on('keydown-H', () => {
+      if (this.confirmingExit) return;
       const next = !this.helpOverlay.visible;
       this.helpOverlay.setVisible(next);
       if (next) {
         this.paused = true;
         this.pauseOverlay.setVisible(false);
-      } else if (this.paused) {
+      } else {
         this.paused = false;
         this.accumulator = 0;
       }
+    });
+
+    this.input.keyboard!.on('keydown-P', () => {
+      if (this.confirmingExit || this.helpOverlay.visible) return;
+      this.paused = !this.paused;
+      this.pauseOverlay.setVisible(this.paused);
+      if (!this.paused) this.accumulator = 0;
     });
 
     this.input.keyboard!.on('keydown-ESC', () => {
@@ -159,10 +185,31 @@ export class DiveScene extends Phaser.Scene {
         this.accumulator = 0;
         return;
       }
+      if (this.confirmingExit) {
+        this.confirmingExit = false;
+        this.confirmOverlay.setVisible(false);
+        this.paused = false;
+        this.accumulator = 0;
+        return;
+      }
       if (this.gameState.phase !== 'playing' && !this.paused) return;
-      this.paused = !this.paused;
-      this.pauseOverlay.setVisible(this.paused);
-      if (!this.paused) this.accumulator = 0;
+      this.confirmingExit = true;
+      this.confirmOverlay.setVisible(true);
+      this.paused = true;
+      this.pauseOverlay.setVisible(false);
+    });
+
+    this.input.keyboard!.on('keydown-Y', () => {
+      if (!this.confirmingExit) return;
+      this.scene.start('Title');
+    });
+
+    this.input.keyboard!.on('keydown-N', () => {
+      if (!this.confirmingExit) return;
+      this.confirmingExit = false;
+      this.confirmOverlay.setVisible(false);
+      this.paused = false;
+      this.accumulator = 0;
     });
 
     this.input.keyboard!.on('keydown-BACKTICK', () => {

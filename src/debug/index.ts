@@ -17,7 +17,7 @@ export class DebugPanel {
 
   constructor(scene: Phaser.Scene) {
     this.text = scene.add
-      .text(2, 252, '', {
+      .text(2, 282, '', {
         fontSize: '8px',
         color: '#ffff00',
         backgroundColor: '#00000088',
