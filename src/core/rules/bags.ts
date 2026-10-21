@@ -95,11 +95,14 @@ export function applyNuggetTimers(state: RunState, dt: number): void {
 
 function spawnNuggets(state: RunState, x: number, y: number, out: NuggetEntity[]): void {
   for (let i = 0; i < tuning.bag.nuggetsOnBreak; i++) {
+    const nx = x + (i % 3) - 1;
+    const ny = y + Math.floor(i / 3);
+    if (tileAt(state.grid, nx, ny) === TileType.Bedrock) continue;
     out.push({
       kind: 'nugget',
       id: state.nextId++,
-      x: x + (i % 3) - 1,
-      y: y + Math.floor(i / 3),
+      x: nx,
+      y: ny,
       timer: tuning.bag.nuggetLifetime,
     });
   }
