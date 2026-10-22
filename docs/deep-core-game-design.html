@@ -123,6 +123,7 @@ code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em}
 <h3>Gold bags</h3>
 <ul>
 <li>3 to 6 per floor, embedded in dirt. If the tile below becomes empty, the bag starts to fall.</li>
+<li>A bag starts falling <b>0.5 s after the tile below becomes empty</b> (tunable: <code>tuning.bag.fallDelay</code>). During this delay the bag wobbles ±1 px horizontally, giving monsters just enough time to walk under it.</li>
 <li>Falls 1 tile: stays intact and can be pushed sideways by the player.</li>
 <li>Falls 2 or more tiles, or lands on a monster: it breaks and spills 5 nuggets (3 emeralds each).</li>
 <li>Any falling bag kills a non-boss monster it lands on.</li>

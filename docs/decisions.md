@@ -9,9 +9,18 @@
 - Used regular enum for TileType and Action (not const enum) — Vite/esbuild strips types without compiling, so cross-file const enums are unsafe.
 - `"type": "module"` added to package.json so eslint.config.js uses ESM imports.
 
+## Art pass (2026-10-22)
+
+- **Canvas reverted to 480×272** (30×17 tiles × 16 px). The earlier 480×300 / 28 px HUD strip is superseded. The HUD is now drawn inside the top bedrock row (row 0, y=0..15) as sprites on a RenderTexture at depth 10. No `HUD_HEIGHT` constant exists; all game objects render from y=0.
+- **Hearts use 10 px spacing** (frame left-edges at x = 4 + i×10). Up to 6 hearts fit in 64 px before the fuel icon. The earlier 12 px spacing recorded on 2026-10-22 is superseded.
+- **Bitmap font loaded as Angelcode BMFont** (`coalface` key, `font.xml` descriptor, `font.png` atlas). All in-game text uses this font via `Phaser.GameObjects.BitmapText`. No browser fonts anywhere.
+- **Autotile implemented in render/autotile.ts** (never in core). Dirt tiles use a 4-bit empty-neighbour mask → edge/corner/concave/dirt variants. Empty tiles use the N/W shadow rule; narrow corridors use corridor_* variants.
+- **Bag wobble during `pendingFallTimer > 0`**: renderer reads `bag.pendingFallTimer` (read-only) and alternates x offset ±1 px every 4 frames at 60 Hz.
+- **RunPick scene** (key `'RunPick'`) replaces the old `FloorClear` stub. Offered every 2nd floor (after floor 2, 4, 6 …). Three weighted-random run upgrade cards; selection stored in `RunCarry.runUpgrades[]`.
+
 ## Bug fixes (2026-10-22)
 
-- **Canvas expanded to 480×300** (+28 px for the HUD strip). `DiveScene.create()` sets `gfx.setY(HUD_HEIGHT)` so all game tiles render below the HUD; overlays and debug panel repositioned accordingly.
+- **Canvas was expanded to 480×300** (+28 px for the HUD strip). This is now superseded by the art-pass layout above.
 - **P pauses / unpauses.** ESC now shows a Y/N confirm-exit overlay instead of toggling pause directly. The game state remains frozen until the player answers.
 - **Bag fall delay** (`tuning.bag.fallDelay`, default 0.5 s): bags countdown via `pendingFallTimer` before physics fall begins, giving enemies time to walk under them.
 - **`fallDistance` is NOT reset on a safe landing.** A bag remembers cumulative fall distance across multiple falls, so a bag that previously fell 1 tile will break on the very next 1-tile fall (if `breakMinFall = 2`). Resetting it was a regression introduced when fallDelay was added.

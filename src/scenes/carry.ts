@@ -10,4 +10,5 @@ export interface RunCarry {
   emeralds: number;
   kills: number;
   saveData: SaveData;
+  runUpgrades?: string[];
 }

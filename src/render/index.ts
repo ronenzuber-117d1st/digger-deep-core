@@ -1,230 +1,405 @@
 import Phaser from 'phaser';
 import { RunState } from '../core/run';
-import { TileType } from '../core/grid';
-import { Entity, BagEntity, GrubEntity, BurrowerEntity, SpitterEntity, ProjectileEntity, dirDelta } from '../core/entities';
-import tuning from '../data/tuning.json';
+import { TileType, tileAt } from '../core/grid';
+import {
+  Entity, BagEntity, GrubEntity, BurrowerEntity, SpitterEntity,
+  ProjectileEntity, NestEntity, dirDelta,
+} from '../core/entities';
+import { GameEvent } from '../core/events';
+import { dirtTileFrame, emptyTileFrame, tileHash } from './autotile';
+import { FONT_KEY, FONT_SIZE, COLOR, measureText } from './font';
 
-const T = tuning.floor.tileSize;
-
-export const HUD_HEIGHT = 28;
-
-const COLORS = {
-  bedrock: 0x1a1a2e,
-  dirt: 0x7a3b10,
-  empty: 0x0d0d1a,
-  exit: 0x00e5ff,
-  player: 0x44ff44,
-  playerInvul: 0xaaaaaa,
-  grub: 0xff4444,
-  grubDead: 0x882222,
-  burrower: 0xe04040,
-  burrowerDig: 0xff8800,
-  spitter: 0xcc44cc,
-  spitterEye: 0xffffff,
-  projectile: 0xff88ff,
-  bag: 0xffd700,
-  nugget: 0xff8c00,
-  nest: 0xaa00cc,
-  fuel: 0x0088ff,
-  gem: 0x00ffaa,
-  pulse: 0xffffff,
-  hpFull: 0xff2222,
-  hpEmpty: 0x440000,
-  fuelFull: 0x2266ff,
-  fuelEmpty: 0x111133,
-};
-
-export interface PulseFlash {
-  x: number;
-  y: number;
-  dir: string;
-  ttl: number;
-}
-
-export function renderFloor(
-  gfx: Phaser.GameObjects.Graphics,
-  state: RunState,
-  pulseFlashes: PulseFlash[],
-): void {
-  gfx.clear();
-
-  const { grid } = state;
-
-  for (let y = 0; y < grid.height; y++) {
-    for (let x = 0; x < grid.width; x++) {
-      const tile = grid.tiles[y * grid.width + x];
-      let color: number;
-      switch (tile) {
-        case TileType.Bedrock: color = COLORS.bedrock; break;
-        case TileType.Dirt:    color = COLORS.dirt;    break;
-        case TileType.Empty:   color = COLORS.empty;   break;
-        case TileType.Exit:    color = COLORS.exit;    break;
-        default:               color = COLORS.empty;
-      }
-      gfx.fillStyle(color);
-      gfx.fillRect(x * T, y * T, T, T);
-    }
-  }
-
-  for (const e of state.entities) {
-    drawEntity(gfx, e);
-  }
-
-  for (const flash of pulseFlashes) {
-    drawPulseFlash(gfx, flash);
-  }
-
-  drawPlayer(gfx, state);
-}
-
-function drawEntity(gfx: Phaser.GameObjects.Graphics, e: Entity): void {
-  switch (e.kind) {
-    case 'gem':
-      gfx.fillStyle(COLORS.gem);
-      gfx.fillRect(e.x * T + 4, e.y * T + 4, T - 8, T - 8);
-      break;
-
-    case 'fuel':
-      gfx.fillStyle(COLORS.fuel);
-      gfx.fillRect(e.x * T + 2, e.y * T + 2, T - 4, T - 4);
-      break;
-
-    case 'nugget': {
-      const alpha = Math.min(1, e.timer / 2);
-      gfx.fillStyle(COLORS.nugget, alpha);
-      gfx.fillRect(e.x * T + 5, e.y * T + 5, T - 10, T - 10);
-      break;
-    }
-
-    case 'nest':
-      gfx.fillStyle(COLORS.nest);
-      gfx.fillRect(e.x * T + 1, e.y * T + 1, T - 2, T - 2);
-      gfx.fillStyle(0x220033);
-      gfx.fillRect(e.x * T + 5, e.y * T + 5, T - 10, T - 10);
-      break;
-
-    case 'bag': {
-      const bag = e as BagEntity;
-      const vy = bag.falling ? bag.y + bag.fallProgress : bag.y;
-      gfx.fillStyle(COLORS.bag);
-      gfx.fillRect(bag.x * T + 1, vy * T + 1, T - 2, T - 2);
-      break;
-    }
-
-    case 'grub': {
-      const grub = e as GrubEntity;
-      const vx = grub.moving ? lerp(grub.fromX, grub.toX, grub.moveProgress) : grub.x;
-      const vy = grub.moving ? lerp(grub.fromY, grub.toY, grub.moveProgress) : grub.y;
-      gfx.fillStyle(COLORS.grub);
-      gfx.fillRect(vx * T + 2, vy * T + 2, T - 4, T - 4);
-      gfx.fillStyle(COLORS.grubDead);
-      gfx.fillRect(vx * T + 5, vy * T + 5, 3, 3);
-      gfx.fillRect(vx * T + T - 8, vy * T + 5, 3, 3);
-      break;
-    }
-
-    case 'burrower': {
-      const b = e as BurrowerEntity;
-      const vx = b.moving ? lerp(b.fromX, b.toX, b.moveProgress) : b.x;
-      const vy = b.moving ? lerp(b.fromY, b.toY, b.moveProgress) : b.y;
-      gfx.fillStyle(b.isDigging ? COLORS.burrowerDig : COLORS.burrower);
-      gfx.fillRect(vx * T + 1, vy * T + 1, T - 2, T - 2);
-      // Spikes
-      gfx.fillStyle(0xffd700);
-      gfx.fillTriangle(
-        vx * T + 8, vy * T,
-        vx * T + 4, vy * T + 4,
-        vx * T + 12, vy * T + 4,
-      );
-      break;
-    }
-
-    case 'spitter': {
-      const sp = e as SpitterEntity;
-      const vx = sp.moving ? lerp(sp.fromX, sp.toX, sp.moveProgress) : sp.x;
-      const vy = sp.moving ? lerp(sp.fromY, sp.toY, sp.moveProgress) : sp.y;
-      gfx.fillStyle(COLORS.spitter);
-      gfx.fillRect(vx * T + 2, vy * T + 3, T - 4, T - 6);
-      // Eye/nozzle
-      gfx.fillStyle(COLORS.spitterEye);
-      gfx.fillRect(vx * T + T - 5, vy * T + 6, 3, 4);
-      break;
-    }
-
-    case 'projectile': {
-      const proj = e as ProjectileEntity;
-      const { dx, dy } = dirDelta(proj.dir);
-      const vx = proj.x + dx * proj.moveProgress;
-      const vy = proj.y + dy * proj.moveProgress;
-      gfx.fillStyle(COLORS.projectile);
-      gfx.fillRect(vx * T + 5, vy * T + 5, T - 10, T - 10);
-      break;
-    }
-  }
-}
-
-function drawPulseFlash(gfx: Phaser.GameObjects.Graphics, flash: PulseFlash): void {
-  const alpha = flash.ttl / 0.1;
-  gfx.fillStyle(COLORS.pulse, alpha * 0.7);
-  gfx.fillRect(flash.x * T, flash.y * T, T, T);
-}
-
-function drawPlayer(gfx: Phaser.GameObjects.Graphics, state: RunState): void {
-  const p = state.player;
-  const vx = p.moving ? lerp(p.fromX, p.toX, p.moveProgress) : p.x;
-  const vy = p.moving ? lerp(p.fromY, p.toY, p.moveProgress) : p.y;
-
-  const flicker = p.invulTimer > 0 && Math.floor(p.invulTimer * 10) % 2 === 0;
-  const color = flicker ? COLORS.playerInvul : COLORS.player;
-
-  gfx.fillStyle(color);
-  gfx.fillRect(vx * T + 1, vy * T + 1, T - 2, T - 2);
-
-  gfx.fillStyle(0x002200);
-  switch (p.facing) {
-    case 'right': gfx.fillRect(vx * T + T - 5, vy * T + 5, 3, 6); break;
-    case 'left':  gfx.fillRect(vx * T + 2, vy * T + 5, 3, 6); break;
-    case 'up':    gfx.fillRect(vx * T + 5, vy * T + 2, 6, 3); break;
-    case 'down':  gfx.fillRect(vx * T + 5, vy * T + T - 5, 6, 3); break;
-  }
-}
-
-export function renderHud(
-  hudGfx: Phaser.GameObjects.Graphics,
-  hudText: Phaser.GameObjects.Text,
-  state: RunState,
-): void {
-  hudGfx.clear();
-
-  const p = state.player;
-  const bx = 4;
-
-  // Background strip
-  hudGfx.fillStyle(0x0d0b14);
-  hudGfx.fillRect(0, 0, 480, HUD_HEIGHT);
-
-  // HP hearts — row 1, y=4
-  for (let i = 0; i < p.maxHp; i++) {
-    hudGfx.fillStyle(i < p.hp ? COLORS.hpFull : COLORS.hpEmpty);
-    hudGfx.fillRect(bx + i * 12, 4, 10, 10);
-  }
-
-  // Fuel bar — row 2, y=18
-  const barW = 72;
-  const barH = 5;
-  hudGfx.fillStyle(COLORS.fuelEmpty);
-  hudGfx.fillRect(bx, 18, barW, barH);
-  const fuelRatio = Math.max(0, p.fuel / p.maxFuel);
-  hudGfx.fillStyle(COLORS.fuelFull);
-  hudGfx.fillRect(bx, 18, Math.floor(barW * fuelRatio), barH);
-
-  // Divider line
-  hudGfx.fillStyle(0x2c2347);
-  hudGfx.fillRect(0, HUD_HEIGHT - 1, 480, 1);
-
-  hudText.setText(`E:${p.emeralds}   FL:${state.floor}   K:${state.kills}`);
-}
+const T = 16;
+const BIOME_NAMES = ['TOPSOIL', 'FOSSIL BED', 'CRYSTAL DEPTHS', 'MAGMA RIM'];
+const HUD_SEGMENTS = 16;
+const SEG_STRIDE = 8;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * Math.min(1, t);
+}
+
+function biomeName(floor: number): string {
+  const idx = Math.min(Math.floor((floor - 1) / 5), BIOME_NAMES.length - 1);
+  return BIOME_NAMES[idx];
+}
+
+// ── Floating score popup ────────────────────────────────────────────────────
+
+interface FloatText {
+  bm: Phaser.GameObjects.BitmapText;
+  vy: number;
+  ttl: number;
+  maxTtl: number;
+}
+
+// ── Main renderer ───────────────────────────────────────────────────────────
+
+export class DiveRenderer {
+  private scene: Phaser.Scene;
+  private tileRT: Phaser.GameObjects.RenderTexture;
+  private hudRT: Phaser.GameObjects.RenderTexture;
+  private playerImg: Phaser.GameObjects.Image;
+  private entityImages = new Map<number, Phaser.GameObjects.Image>();
+  private floatTexts: FloatText[] = [];
+
+  // HUD bitmap text labels (updated each frame)
+  private hudEmText: Phaser.GameObjects.BitmapText;
+  private hudFloorText: Phaser.GameObjects.BitmapText;
+  private hudBiomeText: Phaser.GameObjects.BitmapText;
+  private hudLowText: Phaser.GameObjects.BitmapText;
+
+  // Pulse flash overlay
+  private pulseGfx: Phaser.GameObjects.Graphics;
+
+  private animTimer = 0;
+
+  constructor(scene: Phaser.Scene) {
+    this.scene = scene;
+
+    // Tile layer — full canvas, depth 0
+    this.tileRT = scene.add.renderTexture(0, 0, 480, 272).setDepth(0);
+
+    // Player image, depth 2
+    this.playerImg = scene.add.image(0, 0, 'player', 'right_0')
+      .setDepth(2).setOrigin(0, 0);
+
+    // Pulse flash overlay, depth 3
+    this.pulseGfx = scene.add.graphics().setDepth(3);
+
+    // HUD sprite layer — top 16 px, above everything, fixed to camera
+    this.hudRT = scene.add
+      .renderTexture(0, 0, 480, 16)
+      .setDepth(10)
+      .setScrollFactor(0);
+
+    // HUD text labels, depth 11, fixed to camera
+    const textY = 4;
+    this.hudEmText = scene.add
+      .bitmapText(0, textY, FONT_KEY, '', FONT_SIZE)
+      .setDepth(11).setScrollFactor(0).setTint(COLOR.gold);
+
+    this.hudFloorText = scene.add
+      .bitmapText(0, textY, FONT_KEY, '', FONT_SIZE)
+      .setDepth(11).setScrollFactor(0).setTint(COLOR.body);
+
+    this.hudBiomeText = scene.add
+      .bitmapText(0, textY, FONT_KEY, '', FONT_SIZE)
+      .setDepth(11).setScrollFactor(0).setTint(COLOR.soft);
+
+    this.hudLowText = scene.add
+      .bitmapText(0, textY, FONT_KEY, 'LOW!', FONT_SIZE)
+      .setDepth(11).setScrollFactor(0).setTint(COLOR.warn)
+      .setVisible(false);
+  }
+
+  update(state: RunState, dt: number, events: GameEvent[]): void {
+    this.animTimer += dt;
+    const a6 = Math.floor(this.animTimer * 6) % 2;
+    const a2 = Math.floor(this.animTimer * 2) % 2;
+
+    this.drawTiles(state, a2);
+    this.drawPlayer(state, a6);
+    this.drawEntities(state, a6, a2);
+    this.drawHUD(state);
+    this.processEvents(events, state);
+    this.updateFloats(dt);
+  }
+
+  // ── Tile layer ────────────────────────────────────────────────────────────
+
+  private drawTiles(state: RunState, a2: number): void {
+    const { grid } = state;
+    this.tileRT.clear();
+
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        const tile = tileAt(grid, x, y);
+
+        if (tile === TileType.Bedrock) {
+          const variant = tileHash(x, y) % 3;
+          this.tileRT.drawFrame('tiles_topsoil', `bedrock_${variant}`, x * T, y * T);
+        } else if (tile === TileType.Dirt) {
+          const fname = dirtTileFrame(grid, x, y);
+          this.tileRT.drawFrame('tiles_topsoil', fname, x * T, y * T);
+        } else {
+          // Empty or Exit — draw floor
+          const fname = emptyTileFrame(grid, x, y);
+          this.tileRT.drawFrame('tiles_topsoil', fname, x * T, y * T);
+          // Exit shaft sprite on top
+          if (tile === TileType.Exit) {
+            this.tileRT.drawFrame('objects', `exit_shaft_${a2}`, x * T, y * T);
+          }
+        }
+      }
+    }
+  }
+
+  // ── Player ────────────────────────────────────────────────────────────────
+
+  private drawPlayer(state: RunState, a6: number): void {
+    const p = state.player;
+    const vx = p.moving ? lerp(p.fromX, p.toX, p.moveProgress) : p.x;
+    const vy = p.moving ? lerp(p.fromY, p.toY, p.moveProgress) : p.y;
+
+    const flicker = p.invulTimer > 0 && Math.floor(p.invulTimer * 10) % 2 === 0;
+    const frame = (p.moving || p.isDigging) ? `${p.facing}_${a6}` : `${p.facing}_0`;
+
+    this.playerImg
+      .setTexture('player', frame)
+      .setPosition(vx * T, vy * T)
+      .setAlpha(flicker ? 0.35 : 1.0);
+  }
+
+  // ── Entities ──────────────────────────────────────────────────────────────
+
+  private drawEntities(state: RunState, a6: number, a2: number): void {
+    const seen = new Set<number>();
+
+    for (const e of state.entities) {
+      seen.add(e.id);
+      if (!this.entityImages.has(e.id)) {
+        const img = this.scene.add.image(0, 0, 'objects', 0)
+          .setDepth(2).setOrigin(0, 0);
+        this.entityImages.set(e.id, img);
+      }
+      this.updateEntityImg(this.entityImages.get(e.id)!, e, a6, a2);
+    }
+
+    for (const [id, img] of this.entityImages) {
+      if (!seen.has(id)) {
+        img.destroy();
+        this.entityImages.delete(id);
+      }
+    }
+  }
+
+  private updateEntityImg(
+    img: Phaser.GameObjects.Image,
+    e: Entity,
+    a6: number,
+    a2: number,
+  ): void {
+    img.setAlpha(1).setFlipX(false).setVisible(true);
+
+    switch (e.kind) {
+      case 'grub': {
+        const g = e as GrubEntity;
+        const vx = g.moving ? lerp(g.fromX, g.toX, g.moveProgress) : g.x;
+        const vy = g.moving ? lerp(g.fromY, g.toY, g.moveProgress) : g.y;
+        img.setTexture('monsters', `grub_${a6}`)
+          .setPosition(vx * T, vy * T)
+          .setFlipX(g.nextDir === 'left');
+        break;
+      }
+
+      case 'burrower': {
+        const b = e as BurrowerEntity;
+        const vx = b.moving ? lerp(b.fromX, b.toX, b.moveProgress) : b.x;
+        const vy = b.moving ? lerp(b.fromY, b.toY, b.moveProgress) : b.y;
+        img.setTexture('monsters', `burrower_${a6}`)
+          .setPosition(vx * T, vy * T)
+          .setFlipX(b.nextDir === 'left');
+        break;
+      }
+
+      case 'spitter': {
+        const sp = e as SpitterEntity;
+        const vx = sp.moving ? lerp(sp.fromX, sp.toX, sp.moveProgress) : sp.x;
+        const vy = sp.moving ? lerp(sp.fromY, sp.toY, sp.moveProgress) : sp.y;
+        img.setTexture('monsters', `spitter_${a6}`)
+          .setPosition(vx * T, vy * T)
+          .setFlipX(sp.nextDir === 'left');
+        break;
+      }
+
+      case 'projectile': {
+        const proj = e as ProjectileEntity;
+        const { dx, dy } = dirDelta(proj.dir);
+        const vx = proj.x + dx * proj.moveProgress;
+        const vy = proj.y + dy * proj.moveProgress;
+        img.setTexture('monsters', 'spit_bolt').setPosition(vx * T, vy * T);
+        break;
+      }
+
+      case 'bag': {
+        const bag = e as BagEntity;
+        let px: number;
+        let py: number;
+
+        if (bag.pendingFallTimer > 0) {
+          // Wobble: alternate ±1 px every 4 frames at 60 fps
+          const tick = Math.floor(this.animTimer * 60);
+          const wobble = (tick % 8 < 4) ? -1 : 1;
+          px = bag.x * T + wobble;
+          py = bag.y * T;
+          img.setTexture('objects', 'bag');
+        } else if (bag.falling) {
+          px = bag.x * T;
+          py = (bag.y + bag.fallProgress) * T;
+          img.setTexture('objects', 'bag');
+        } else {
+          px = bag.x * T;
+          py = bag.y * T;
+          img.setTexture('objects', bag.fallDistance > 0 ? 'bag_landed' : 'bag');
+        }
+        img.setPosition(px, py);
+        break;
+      }
+
+      case 'nugget': {
+        const alpha = Math.min(1, (e as { timer: number }).timer / 2);
+        img.setTexture('objects', 'nugget')
+          .setPosition(e.x * T, e.y * T)
+          .setAlpha(alpha);
+        break;
+      }
+
+      case 'nest': {
+        const nest = e as NestEntity;
+        img.setTexture('objects', `nest_${a2}`).setPosition(nest.x * T, nest.y * T);
+        break;
+      }
+
+      case 'fuel':
+        img.setTexture('objects', 'fuel_canister').setPosition(e.x * T, e.y * T);
+        break;
+
+      case 'gem':
+        img.setTexture('objects', 'emerald').setPosition(e.x * T, e.y * T);
+        break;
+    }
+  }
+
+  // ── HUD ───────────────────────────────────────────────────────────────────
+
+  private drawHUD(state: RunState): void {
+    const p = state.player;
+    this.hudRT.clear();
+
+    // Hearts (up to 6, 10 px stride)
+    for (let i = 0; i < p.maxHp; i++) {
+      const frame = i < p.hp ? 'heart_full' : 'heart_empty';
+      this.hudRT.drawFrame('hud', frame, 4 + i * 10, 0);
+    }
+
+    // Fuel icon
+    const fuelIconX = 4 + 6 * 10 + 4; // after 6 heart slots + small gap
+    this.hudRT.drawFrame('hud', 'fuel_mini', fuelIconX, 0);
+
+    // Fuel segments
+    const fuelRatio = p.maxFuel > 0 ? Math.max(0, p.fuel / p.maxFuel) : 0;
+    const filledSegs = Math.round(fuelRatio * HUD_SEGMENTS);
+    const lowFuel = fuelRatio <= 0.25;
+    const lowFlash = lowFuel && Math.floor(this.animTimer * 4) % 2 === 0;
+    const segStartX = fuelIconX + 18;
+
+    for (let i = 0; i < filledSegs; i++) {
+      const frame = (lowFlash && i === filledSegs - 1) ? 'fuel_segment_low' : 'fuel_segment';
+      this.hudRT.drawFrame('hud', frame, segStartX + i * SEG_STRIDE, 0);
+    }
+
+    // Emerald mini icon + count
+    const emX = segStartX + HUD_SEGMENTS * SEG_STRIDE + 6;
+    this.hudRT.drawFrame('hud', 'emerald_mini', emX, 0);
+    const emStr = `X${p.emeralds}`;
+    this.hudEmText.setText(emStr).setX(emX + 18);
+
+    // Floor number
+    const floorStr = `FLOOR ${state.floor}`;
+    const floorX = emX + 18 + measureText(emStr) + 10;
+    this.hudFloorText.setText(floorStr).setX(floorX);
+
+    // Biome name — right-aligned before right bedrock column
+    const biome = biomeName(state.floor);
+    const biomeW = measureText(biome);
+    this.hudBiomeText.setText(biome).setX(480 - 16 - biomeW - 2);
+
+    // LOW! warning
+    if (lowFuel) {
+      const lowX = segStartX - 24;
+      this.hudLowText.setX(lowX).setVisible(Math.floor(this.animTimer * 4) % 2 === 0);
+    } else {
+      this.hudLowText.setVisible(false);
+    }
+  }
+
+  // ── Pulse flashes ─────────────────────────────────────────────────────────
+
+  drawPulseFlash(x: number, y: number, ttl: number, maxTtl: number): void {
+    const alpha = (ttl / maxTtl) * 0.7;
+    this.pulseGfx.fillStyle(0xffffff, alpha);
+    this.pulseGfx.fillRect(x * T, y * T, T, T);
+  }
+
+  clearPulseGfx(): void {
+    this.pulseGfx.clear();
+  }
+
+  // ── Events → visual effects ───────────────────────────────────────────────
+
+  private processEvents(events: GameEvent[], state: RunState): void {
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'hit':
+          this.scene.cameras.main.shake(200, 0.003);
+          break;
+        case 'bag-break':
+          this.spawnStarburst((ev as { x: number; y: number }).x, (ev as { x: number; y: number }).y);
+          break;
+        case 'pickup':
+          this.spawnFloatText(
+            state.player.x, state.player.y,
+            (ev as { kind: string }).kind === 'gem' ? '+GEM' : '+',
+            COLOR.gold,
+          );
+          break;
+      }
+    }
+  }
+
+  private spawnStarburst(tx: number, ty: number): void {
+    const gfx = this.scene.add.graphics().setDepth(4);
+    gfx.fillStyle(0xffd700);
+    const cx = tx * T + 8;
+    const cy = ty * T + 8;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const ex = cx + Math.cos(angle) * 6;
+      const ey = cy + Math.sin(angle) * 6;
+      gfx.fillRect(ex - 1, ey - 1, 2, 2);
+    }
+    this.scene.time.delayedCall(300, () => gfx.destroy());
+  }
+
+  private spawnFloatText(tx: number, ty: number, text: string, tint: number): void {
+    const bm = this.scene.add
+      .bitmapText(tx * T, ty * T - 4, FONT_KEY, text, FONT_SIZE)
+      .setDepth(4)
+      .setTint(tint);
+    this.floatTexts.push({ bm, vy: -20, ttl: 1.0, maxTtl: 1.0 });
+  }
+
+  private updateFloats(dt: number): void {
+    for (const f of this.floatTexts) {
+      f.ttl -= dt;
+      f.bm.y += f.vy * dt;
+      f.bm.setAlpha(Math.max(0, f.ttl / f.maxTtl));
+    }
+    const dead = this.floatTexts.filter((f) => f.ttl <= 0);
+    for (const f of dead) f.bm.destroy();
+    this.floatTexts = this.floatTexts.filter((f) => f.ttl > 0);
+  }
+
+  destroy(): void {
+    this.tileRT.destroy();
+    this.hudRT.destroy();
+    this.playerImg.destroy();
+    this.pulseGfx.destroy();
+    this.hudEmText.destroy();
+    this.hudFloorText.destroy();
+    this.hudBiomeText.destroy();
+    this.hudLowText.destroy();
+    for (const img of this.entityImages.values()) img.destroy();
+    for (const f of this.floatTexts) f.bm.destroy();
+  }
 }

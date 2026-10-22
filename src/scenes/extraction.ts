@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { RunCarry } from './carry';
 import { saveSave } from '../storage/index';
 import { SaveData } from '../core/save';
+import { bitmapLabel, COLOR, measureText } from '../render/font';
 
 export interface ExtractionData {
   carry: RunCarry;
@@ -21,48 +22,47 @@ export class ExtractionScene extends Phaser.Scene {
 
     this.add.rectangle(240, 136, 480, 272, 0x000000, 0.92);
 
-    this.add.text(240, 45, 'EXTRACTION POINT', {
-      fontSize: '22px',
-      color: '#5bb8e8',
-    }).setOrigin(0.5);
+    // Header
+    this.add.graphics().fillStyle(0x16122a).fillRect(0, 0, 480, 16);
+    const hStr = 'EXTRACTION POINT';
+    bitmapLabel(this, 240 - measureText(hStr, 14) / 2, 1, hStr, COLOR.cyan, 14);
 
-    this.add.text(240, 80, `Floor ${carry.floor}  ·  ${carry.emeralds} ◆ carried  ·  ${carry.kills} kills`, {
-      fontSize: '11px',
-      color: '#9aa1b2',
-    }).setOrigin(0.5);
+    // Stats
+    const subStr = `FLOOR ${carry.floor}  -  ${carry.emeralds} $ CARRIED  -  ${carry.kills} KILLS`;
+    bitmapLabel(this, 240 - measureText(subStr) / 2, 22, subStr, COLOR.soft);
 
     // Extract button
-    const extractBtn = this.add.text(160, 140, 'EXTRACT  (keep 100%)', {
-      fontSize: '14px',
-      color: '#5bc46a',
-      backgroundColor: '#0f2e24',
-      padding: { x: 10, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    extractBtn.on('pointerover', () => extractBtn.setColor('#a8e68a'));
-    extractBtn.on('pointerout', () => extractBtn.setColor('#5bc46a'));
-    extractBtn.on('pointerdown', () => this.extract(carry));
+    const btnY = 60;
+    this.makeButton(80, btnY, 140, 18, 'EXTRACT  (KEEP 100%)', COLOR.good, 0x0f3020, 0x5bc46a,
+      () => this.extract(carry));
 
     // Continue button
-    const continueBtn = this.add.text(330, 140, 'CONTINUE DEEPER', {
-      fontSize: '14px',
-      color: '#f28f2e',
-      backgroundColor: '#2a1a14',
-      padding: { x: 10, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.makeButton(260, btnY, 140, 18, 'CONTINUE DEEPER', COLOR.warn, 0x2a1a14, 0xc07020,
+      () => this.continueDeeper(carry));
 
-    continueBtn.on('pointerover', () => continueBtn.setColor('#f7c94b'));
-    continueBtn.on('pointerout', () => continueBtn.setColor('#f28f2e'));
-    continueBtn.on('pointerdown', () => this.continueDeeper(carry));
-
-    this.add.text(240, 200, 'E — extract     C — continue', {
-      fontSize: '10px',
-      color: '#43365f',
-    }).setOrigin(0.5);
+    const hint = 'E - EXTRACT     C - CONTINUE';
+    bitmapLabel(this, 240 - measureText(hint) / 2, 90, hint, COLOR.muted);
 
     this.input.keyboard!.once('keydown-E', () => this.extract(carry));
     this.input.keyboard!.once('keydown-C', () => this.continueDeeper(carry));
     this.input.keyboard!.once('keydown-ENTER', () => this.extract(carry));
+  }
+
+  private makeButton(
+    x: number, y: number, w: number, h: number,
+    label: string, tint: number, fillColor: number, borderColor: number,
+    action: () => void,
+  ): void {
+    const gfx = this.add.graphics();
+    const draw = (f: number, b: number): void => {
+      gfx.clear().fillStyle(f).fillRect(x, y, w, h).lineStyle(1, b).strokeRect(x, y, w, h);
+    };
+    draw(fillColor, borderColor);
+    const lbl = bitmapLabel(this, x + (w - measureText(label)) / 2, y + (h - 7) / 2, label, tint).setDepth(1);
+    gfx.setInteractive(new Phaser.Geom.Rectangle(x, y, w, h), Phaser.Geom.Rectangle.Contains);
+    gfx.on('pointerover', () => { draw(borderColor, borderColor); lbl.setTint(0xffffff); });
+    gfx.on('pointerout', () => { draw(fillColor, borderColor); lbl.setTint(tint); });
+    gfx.on('pointerdown', action);
   }
 
   private extract(carry: RunCarry): void {
@@ -77,24 +77,13 @@ export class ExtractionScene extends Phaser.Scene {
       },
     };
     saveSave(newSave);
-
     this.scene.start('Summary', {
-      floor: carry.floor,
-      emeraldsBanked: carry.emeralds,
-      kills: carry.kills,
-      seed: carry.seed,
-      survived: true,
-      saveData: newSave,
+      floor: carry.floor, emeraldsBanked: carry.emeralds,
+      kills: carry.kills, seed: carry.seed, survived: true, saveData: newSave,
     });
   }
 
   private continueDeeper(carry: RunCarry): void {
-    const nextFloor = carry.floor + 1;
-    const nextCarry: RunCarry = {
-      ...carry,
-      floor: nextFloor,
-      fuel: Math.min(carry.fuel + 15, carry.maxFuel),
-    };
-    this.scene.start('Dive', nextCarry);
+    this.scene.start('Dive', { ...carry, floor: carry.floor + 1, fuel: Math.min(carry.fuel + 15, carry.maxFuel) });
   }
 }

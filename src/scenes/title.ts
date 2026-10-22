@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { loadSave } from '../storage/index';
+import { bitmapLabel, COLOR, measureText } from '../render/font';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -7,45 +8,41 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Background
     this.add.rectangle(240, 136, 480, 272, 0x0d0b14);
 
-    this.add.text(240, 60, 'DEEP CORE', {
-      fontSize: '32px',
-      color: '#f0a04b',
-    }).setOrigin(0.5);
+    // Title
+    const titleStr = 'DEEP CORE';
+    bitmapLabel(this, 240 - measureText(titleStr) / 2, 52, titleStr, COLOR.heading, 14)
+      .setDepth(1);
 
-    this.add.text(240, 100, 'roguelite · dig · survive', {
-      fontSize: '10px',
-      color: '#78768a',
-    }).setOrigin(0.5);
+    bitmapLabel(this, 0, 70, 'ROGUELITE  -  DIG  -  SURVIVE', COLOR.soft)
+      .setOrigin(0).setX(240 - measureText('ROGUELITE  -  DIG  -  SURVIVE') / 2)
+      .setDepth(1);
 
     const save = loadSave();
     const hasSave = save.stats.runs > 0;
 
-    const newGameText = this.add.text(240, 160, 'NEW GAME', {
-      fontSize: '16px',
-      color: '#5bc46a',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    newGameText.on('pointerover', () => newGameText.setColor('#a8e68a'));
-    newGameText.on('pointerout', () => newGameText.setColor('#5bc46a'));
-    newGameText.on('pointerdown', () => this.startNew());
+    // NEW GAME button
+    const ngX = 240 - measureText('NEW GAME') / 2;
+    const ngBm = bitmapLabel(this, ngX, 130, 'NEW GAME', COLOR.good).setDepth(1)
+      .setInteractive({ useHandCursor: true, hitArea: new Phaser.Geom.Rectangle(0, 0, measureText('NEW GAME'), 10), hitAreaCallback: Phaser.Geom.Rectangle.Contains });
+    ngBm.on('pointerover', () => ngBm.setTint(0xa8e68a));
+    ngBm.on('pointerout', () => ngBm.setTint(COLOR.good));
+    ngBm.on('pointerdown', () => this.startNew());
 
     if (hasSave) {
-      const continueText = this.add.text(240, 195, `CONTINUE  (floor ${save.stats.bestFloor}  ·  ${save.emeralds} ◆)`, {
-        fontSize: '14px',
-        color: '#5bb8e8',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-      continueText.on('pointerover', () => continueText.setColor('#a8e4f5'));
-      continueText.on('pointerout', () => continueText.setColor('#5bb8e8'));
-      continueText.on('pointerdown', () => this.scene.start('Base'));
+      const contStr = `CONTINUE  (BEST FL.${save.stats.bestFloor}  -  ${save.emeralds} $)`;
+      const contX = 240 - measureText(contStr) / 2;
+      const contBm = bitmapLabel(this, contX, 150, contStr, COLOR.cyan).setDepth(1)
+        .setInteractive({ useHandCursor: true, hitArea: new Phaser.Geom.Rectangle(0, 0, measureText(contStr), 10), hitAreaCallback: Phaser.Geom.Rectangle.Contains });
+      contBm.on('pointerover', () => contBm.setTint(0xa8e4f5));
+      contBm.on('pointerout', () => contBm.setTint(COLOR.cyan));
+      contBm.on('pointerdown', () => this.scene.start('Base'));
     }
 
-    this.add.text(240, 260, 'arrows / WASD to move · pulse auto-fires · H for help', {
-      fontSize: '8px',
-      color: '#43365f',
-    }).setOrigin(0.5);
+    const hint = 'ARROWS/WASD TO MOVE - PULSE AUTO-FIRES - H FOR HELP';
+    bitmapLabel(this, 240 - measureText(hint) / 2, 256, hint, COLOR.muted).setDepth(1);
 
     this.input.keyboard!.once('keydown-ENTER', () => this.startNew());
     this.input.keyboard!.once('keydown-SPACE', () => {
