@@ -64,5 +64,119 @@
       "baseCost": 90,
       "tier": "mid"
     }
+  ],
+  "run": [
+    {
+      "id": "sharperPulse",
+      "label": "Sharper Pulse",
+      "description": "+1 pulse damage",
+      "rarity": 1,
+      "icon": "pulse",
+      "tag": "COMMON"
+    },
+    {
+      "id": "rapidPulse",
+      "label": "Rapid Pulse",
+      "description": "Pulse cooldown -20%",
+      "rarity": 1,
+      "icon": "pulse",
+      "tag": "COMMON"
+    },
+    {
+      "id": "widePulse",
+      "label": "Wide Pulse",
+      "description": "Pulse hits a 3-wide line",
+      "rarity": 2,
+      "icon": "pulse",
+      "tag": "RARE"
+    },
+    {
+      "id": "magnetCoil",
+      "label": "Magnet Coil",
+      "description": "Emeralds within 3 tiles drift toward your rig",
+      "rarity": 2,
+      "icon": "magnet",
+      "tag": "RARE"
+    },
+    {
+      "id": "shield",
+      "label": "Shield",
+      "description": "Absorbs 1 hit, recharges each floor",
+      "rarity": 2,
+      "icon": "hull",
+      "tag": "RARE"
+    },
+    {
+      "id": "tileBomb",
+      "label": "Tile Bomb",
+      "description": "Press Space to place a bomb, 1 per floor, clears a 3x3 area",
+      "rarity": 2,
+      "icon": "drill",
+      "tag": "RARE"
+    },
+    {
+      "id": "efficientEngine",
+      "label": "Efficient Engine",
+      "description": "Fuel drains 25% slower",
+      "rarity": 1,
+      "icon": "fuel",
+      "tag": "COMMON"
+    },
+    {
+      "id": "goldRush",
+      "label": "Gold Rush",
+      "description": "Nuggets are worth x2",
+      "rarity": 1,
+      "icon": "prospector",
+      "tag": "COMMON"
+    },
+    {
+      "id": "quickDrill",
+      "label": "Quick Drill",
+      "description": "+25% dig speed",
+      "rarity": 1,
+      "icon": "drill",
+      "tag": "COMMON"
+    },
+    {
+      "id": "lantern",
+      "label": "Lantern",
+      "description": "Reveals nests and bags within 6 tiles",
+      "rarity": 2,
+      "icon": "lantern",
+      "tag": "RARE"
+    },
+    {
+      "id": "heavyBags",
+      "label": "Heavy Bags",
+      "description": "Bags deal +50% damage and crush through 1 extra tile",
+      "rarity": 2,
+      "icon": "salvage",
+      "tag": "RARE"
+    },
+    {
+      "id": "secondWind",
+      "label": "Second Wind",
+      "description": "Revive once at 1 HP",
+      "rarity": 3,
+      "icon": "hull",
+      "tag": "RELIC"
+    },
+    {
+      "id": "spareFuel",
+      "label": "Spare Fuel",
+      "description": "+30% fuel now; canisters give 10% more this run",
+      "rarity": 1,
+      "icon": "fuel",
+      "tag": "COMMON"
+    },
+    {
+      "id": "echoPing",
+      "label": "Echo Ping",
+      "description": "Key E reveals monsters through dirt for 4s, once per floor",
+      "rarity": 3,
+      "icon": "ping",
+      "tag": "RELIC"
+    }
   ]
 }

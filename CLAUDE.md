@@ -102,6 +102,13 @@ Unit tests for `core/`: bag fall, push and break; fuel drain; death and extracti
 - **Deliberate debt:** render interpolation, a proper asset pipeline, and a tiny level editor are all deferred. Revisit after the week 3 playtest.
 - **Mobile later:** Capacitor wrapper, with an on-screen d-pad mapped to the same `Action` enum.
 
+## Art
+
+- `docs/palette.json` is the only source of colours. All 32 entries are the authoritative list; no colour values live anywhere else in code.
+- Assets come from `npm run art` (`tools/art/generate.mjs`). Never hand-edit the exported PNGs in `public/assets/sprites/`.
+- `docs/visual-direction.html` and `docs/art-reference/` are the style reference. The mockup PNGs in `docs/art-reference/` are targets, not game assets — do not copy them to `public/`.
+- Scenes must match the mockups: HUD in the top 16 px row, 28×15 playfield, integer scaling only.
+
 ## Working agreement
 
 Work autonomously and stop only when a decision genuinely needs the owner. When you make an assumption, write it in `docs/decisions.md` (one line each) so it can be reviewed later.
