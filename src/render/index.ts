@@ -8,9 +8,23 @@ import {
 import { GameEvent } from '../core/events';
 import { dirtTileFrame, emptyTileFrame, tileHash } from './autotile';
 import { FONT_KEY, FONT_SIZE, COLOR, measureText } from './font';
+import tuning from '../data/tuning.json';
 
 const T = 16;
+const GRID_W = tuning.floor.width;
+const GRID_H = tuning.floor.height;
 const BIOME_NAMES = ['TOPSOIL', 'FOSSIL BED', 'CRYSTAL DEPTHS', 'MAGMA RIM'];
+
+// tiles_topsoil spritesheet has 12 columns; frame index = row*12 + col
+const TILE_FRAMES: Record<string, number> = {
+  dirt_0: 0, dirt_1: 1, dirt_2: 2, dirt_3: 3,
+  floor: 4, floor_shadowed: 5,
+  edge_n: 12, edge_e: 13, edge_s: 14, edge_w: 15,
+  corner_nw: 16, corner_ne: 17, corner_se: 18, corner_sw: 19,
+  concave_nw: 20, concave_ne: 21, concave_se: 22, concave_sw: 23,
+  corridor_ns: 24, corridor_ew: 25, corridor_new: 26, corridor_esw: 27,
+  corridor_nes: 28, corridor_nsw: 29, corridor_all: 30,
+};
 const HUD_SEGMENTS = 16;
 const SEG_STRIDE = 8;
 
@@ -36,7 +50,8 @@ interface FloatText {
 
 export class DiveRenderer {
   private scene: Phaser.Scene;
-  private tileRT: Phaser.GameObjects.RenderTexture;
+  private tileImages: Phaser.GameObjects.Image[];
+  private exitShaftImg: Phaser.GameObjects.Image;
   private hudRT: Phaser.GameObjects.RenderTexture;
   private playerImg: Phaser.GameObjects.Image;
   private entityImages = new Map<number, Phaser.GameObjects.Image>();
@@ -56,8 +71,22 @@ export class DiveRenderer {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    // Tile layer — full canvas, depth 0
-    this.tileRT = scene.add.renderTexture(0, 0, 480, 272).setDepth(0);
+    // Tile layer — one Image per tile, depth 0
+    this.tileImages = [];
+    for (let y = 0; y < GRID_H; y++) {
+      for (let x = 0; x < GRID_W; x++) {
+        this.tileImages.push(
+          scene.add.image(x * T, y * T, 'tiles_topsoil', 0)
+            .setOrigin(0, 0)
+            .setDepth(0),
+        );
+      }
+    }
+    // Exit shaft overlay (objects spritesheet, exit_shaft_0=frame7)
+    this.exitShaftImg = scene.add.image(0, 0, 'objects', 7)
+      .setOrigin(0, 0)
+      .setDepth(1)
+      .setVisible(false);
 
     // Player image, depth 2
     this.playerImg = scene.add.image(0, 0, 'player', 'right_0')
@@ -109,28 +138,33 @@ export class DiveRenderer {
 
   private drawTiles(state: RunState, a2: number): void {
     const { grid } = state;
-    this.tileRT.clear();
+    let exitX = -1;
+    let exitY = -1;
 
     for (let y = 0; y < grid.height; y++) {
       for (let x = 0; x < grid.width; x++) {
         const tile = tileAt(grid, x, y);
+        let frame: number;
 
         if (tile === TileType.Bedrock) {
-          const variant = tileHash(x, y) % 3;
-          this.tileRT.drawFrame('tiles_topsoil', `bedrock_${variant}`, x * T, y * T);
+          frame = 6 + tileHash(x, y) % 3; // bedrock_0=6, bedrock_1=7, bedrock_2=8
         } else if (tile === TileType.Dirt) {
-          const fname = dirtTileFrame(grid, x, y);
-          this.tileRT.drawFrame('tiles_topsoil', fname, x * T, y * T);
+          frame = TILE_FRAMES[dirtTileFrame(grid, x, y)];
         } else {
-          // Empty or Exit — draw floor
-          const fname = emptyTileFrame(grid, x, y);
-          this.tileRT.drawFrame('tiles_topsoil', fname, x * T, y * T);
-          // Exit shaft sprite on top
-          if (tile === TileType.Exit) {
-            this.tileRT.drawFrame('objects', `exit_shaft_${a2}`, x * T, y * T);
-          }
+          frame = TILE_FRAMES[emptyTileFrame(grid, x, y)];
+          if (tile === TileType.Exit) { exitX = x; exitY = y; }
         }
+        this.tileImages[y * grid.width + x].setFrame(frame);
       }
+    }
+
+    if (exitX >= 0) {
+      this.exitShaftImg
+        .setPosition(exitX * T, exitY * T)
+        .setFrame(7 + a2) // exit_shaft_0=7, exit_shaft_1=8 in objects sheet
+        .setVisible(true);
+    } else {
+      this.exitShaftImg.setVisible(false);
     }
   }
 
@@ -276,17 +310,16 @@ export class DiveRenderer {
     const p = state.player;
     this.hudRT.clear();
 
-    // Hearts (up to 6, 10 px stride)
+    // Hearts (up to 6, 10 px stride) — heart_full=0, heart_empty=1
     for (let i = 0; i < p.maxHp; i++) {
-      const frame = i < p.hp ? 'heart_full' : 'heart_empty';
-      this.hudRT.drawFrame('hud', frame, 4 + i * 10, 0);
+      this.hudRT.drawFrame('hud', i < p.hp ? 0 : 1, 4 + i * 10, 0);
     }
 
-    // Fuel icon
-    const fuelIconX = 4 + 6 * 10 + 4; // after 6 heart slots + small gap
-    this.hudRT.drawFrame('hud', 'fuel_mini', fuelIconX, 0);
+    // Fuel icon — fuel_mini=3
+    const fuelIconX = 4 + 6 * 10 + 4;
+    this.hudRT.drawFrame('hud', 3, fuelIconX, 0);
 
-    // Fuel segments
+    // Fuel segments — fuel_segment=6, fuel_segment_low=7
     const fuelRatio = p.maxFuel > 0 ? Math.max(0, p.fuel / p.maxFuel) : 0;
     const filledSegs = Math.round(fuelRatio * HUD_SEGMENTS);
     const lowFuel = fuelRatio <= 0.25;
@@ -294,13 +327,12 @@ export class DiveRenderer {
     const segStartX = fuelIconX + 18;
 
     for (let i = 0; i < filledSegs; i++) {
-      const frame = (lowFlash && i === filledSegs - 1) ? 'fuel_segment_low' : 'fuel_segment';
-      this.hudRT.drawFrame('hud', frame, segStartX + i * SEG_STRIDE, 0);
+      this.hudRT.drawFrame('hud', (lowFlash && i === filledSegs - 1) ? 7 : 6, segStartX + i * SEG_STRIDE, 0);
     }
 
-    // Emerald mini icon + count
+    // Emerald mini icon — emerald_mini=2
     const emX = segStartX + HUD_SEGMENTS * SEG_STRIDE + 6;
-    this.hudRT.drawFrame('hud', 'emerald_mini', emX, 0);
+    this.hudRT.drawFrame('hud', 2, emX, 0);
     const emStr = `X${p.emeralds}`;
     this.hudEmText.setText(emStr).setX(emX + 18);
 
@@ -391,7 +423,8 @@ export class DiveRenderer {
   }
 
   destroy(): void {
-    this.tileRT.destroy();
+    for (const img of this.tileImages) img.destroy();
+    this.exitShaftImg.destroy();
     this.hudRT.destroy();
     this.playerImg.destroy();
     this.pulseGfx.destroy();
