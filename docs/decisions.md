@@ -31,7 +31,7 @@
 
 ## Art pipeline (2026-10-22)
 
-- **HUD supports 6 heart slots at 11px spacing** because Hull (3 levels) raises max HP from 3 to 6. The heart sprite is 11×10 px; the spacing in the HUD draw loop is `5 + i*11`.
+- **HUD supports 6 heart slots at 12px spacing** because Hull (3 levels) raises max HP from 3 to 6. Hearts are 10×10 px drawn at `x = 4 + i*12`; 6 slots fit in 76 px, well within the 480-wide strip.
 - **Hull has 3 levels; Extra Pick and Lantern Mount are single-purchase.** Single-purchase upgrades show OWNED after purchase instead of level pips.
 - **Spare Fuel and Echo Ping added as run upgrades.** Spare Fuel: +30% fuel now (rarity 1, COMMON). Echo Ping: key E reveals monsters through dirt for 4 s, once per floor (rarity 3, RELIC). Both added to `src/data/upgrades.json` and `docs/deep-core-game-design.html`.
 - **Rarity tier (1–3) is a data field** on run upgrades that weights how often a pick is offered in the 3-card draw. Higher rarity = lower weight.
