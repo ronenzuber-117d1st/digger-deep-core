@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deep Core - Visual Direction</title>
+<style>
+:root{--bg:#f4eed9;--fg:#1b1630;--mut:#5b5470;--card:#fffdf4;--line:#d9cfae;--acc:#a3262e}
+:root[data-theme=dark]{--bg:#0d0b14;--fg:#f4eed9;--mut:#a9a3bd;--card:#1b1630;--line:#43365f;--acc:#f7c94b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+header{padding:22px 24px 10px;max-width:1040px;margin:auto}h1{margin:0;font-size:26px;letter-spacing:.04em}
+h2{margin:36px 0 6px;font-size:19px;border-bottom:2px solid var(--line);padding-bottom:6px}h3{margin:18px 0 4px;font-size:15px;color:var(--acc)}
+main{max-width:1040px;margin:auto;padding:0 24px 60px}p,li{color:var(--fg)}.mut{color:var(--mut)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 24px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px}
+.bar button,.bar select{font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);padding:4px 10px;cursor:pointer}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;background:#000;border:2px solid var(--line);max-width:100%}
+.card{background:var(--card);border:1px solid var(--line);padding:14px;margin:14px 0}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}.row>div{flex:1 1 300px}
+.dl{font-size:12px;color:var(--mut)}.dl a{color:var(--acc)}
+.sw{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin:8px 0}.sw div{height:34px;font-size:9px;display:flex;align-items:flex-end;padding:2px;color:#fff;text-shadow:1px 1px 0 #000}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+.pick{border-left:4px solid var(--acc);padding-left:12px}
+code{background:var(--card);padding:1px 4px;border:1px solid var(--line)}
+</style></head><body>
+<div class="bar"><strong>DEEP CORE / visual direction</strong>
+<button id="theme">dark / light</button>
+<label>screen zoom <select id="zoom"><option value="1">1x (480)</option><option value="2" selected>2x (960)</option></select></label>
+<label><input type="checkbox" id="res"> show +30% text headroom marks</label>
+<span id="chk" class="mut"></span></div>
+<header><h1>DEEP CORE - visual direction</h1>
+<p class="mut">Pixel-art roguelite reimagining of Digger. 480x272 internal, 16x16 tiles (30x17), 32-colour palette only, nearest-neighbour scaling. Every sprite, tile, icon and glyph here is original; the Digger screenshots informed readability principles only (strong silhouettes, tunnel vs dirt contrast, pickups that pop, a minimal score strip).</p>
+<p class="mut">Note: only the screenshots and the palette arrived with the brief - no game design doc came through. Where it would matter (upgrade names, biome name, run stats) I used your brief; send the doc and I will reconcile.</p></header>
+<main>
+<h2>1. Two art directions for the dive screen</h2>
+<p>Same level, same sprites, same HUD layout. Topsoil, floor 3. Only light, tile treatment and palette roles differ.</p>
+<div class="card"><h3>A - "Ember Hearth" (cosy, warm, flat-lit)</h3><canvas data-s="diveA"></canvas>
+<p>Dirt is mid brown with a lit top-left lip; tunnels are deep indigo (not black) so outlines and monsters keep a dark edge. Everything is readable everywhere at a glance. Danger comes from shape and from red/pink being reserved for harm.</p><div class="dl" data-dl="diveA"></div></div>
+<div class="card"><h3>B - "Lantern Dark" (moody, contrasty, light-driven)</h3><canvas data-s="diveB"></canvas>
+<p>Near-black voids, darker dirt, and a dithered lantern cone around the rig. Pickups stay fully lit and gain a faint green halo. Atmospheric, but monsters and tunnels outside the cone vanish, which fights the "whole screen is the playfield" goal at 480x272.</p><div class="dl" data-dl="diveB"></div></div>
+<div class="card pick"><h3>Pick: A, with B's lantern kept as a mechanic</h3>
+<p>A best fits "cosy but dangerous, charming not grim" and keeps every tile legible. B is not wasted: the lantern dither is the visual for deeper biomes and for the Lantern Mount upgrade (more light = more of the dark biome revealed). Everything below is built in A.</p></div>
+<h3>Chosen direction, second state: gold bag lands on a Grub</h3><canvas data-s="diveA2"></canvas>
+<p>Bag crushes the Grub (squashed pose), nuggets spill and bounce, impact starburst and +250 popup. HUD occupies only the top bedrock row; playfield is the full 28x15 interior.</p><div class="dl" data-dl="diveA2"></div>
+
+<h2>2. Sprite concept sheet</h2>
+<p>Each strip: actual size (1x) on the left of the pair, 4x below. All sprites are generated as shapes then lit from the top-left with a 1px ink outline, so light direction is consistent even for mirrored or rotated variants.</p>
+<div id="sheets"></div>
+<h3>Silhouette test (colour is never the only signal)</h3><canvas data-s="st_sil" data-z="4"></canvas>
+<p class="mut">Top row solid black: rig (drill nose), Grub (low horizontal segmented bar), Burrower (Y-shaped claws, pointed snout), Spitter (round body + barrel), Drifter (dome + tendrils, hollow), bag, emerald, fuel can, nest. All distinct. Below: same sprites in colour.</p>
+<h3>Monster behaviour language</h3>
+<table><tr><th>Monster</th><th>Silhouette</th><th>Colour</th><th>Tell</th></tr>
+<tr><td>Grub (chases)</td><td>low wide caterpillar, 4 segments</td><td>pink/red</td><td>inch-worm frames when moving</td></tr>
+<tr><td>Burrower (digs)</td><td>Y shape, big claws, pointed snout</td><td>purple + cream claws</td><td>claws open/close; rotates to travel direction</td></tr>
+<tr><td>Spitter (shoots)</td><td>round body + horizontal barrel</td><td>dark teal + orange crest</td><td>barrel recoil + diamond bolt (pink/white)</td></tr>
+<tr><td>Drifter (floats)</td><td>dome + wavy tendrils, checker-hollow body</td><td>pale cream-grey</td><td>bobs 1px; dirt shows through it</td></tr></table>
+<h3>Tile set: Topsoil</h3><canvas data-s="sh_tiles" data-z="4"></canvas>
+<p class="mut">Row 1: dirt x4, tunnel floor (plain / with N+W cast shadow), bedrock x3. Row 2: edges N E S W, convex corners, concave corners. Row 3: corridors, caps, island. Edge rule: 1px dark outline, then 1px lit lip on N/W faces or shade on S/E faces. Tunnel tiles add a 2px N and 1px W shadow.</p>
+<h3>Autotile in context</h3><canvas data-s="sh_patch" data-z="3"></canvas>
+
+<h2>3. Base screen (surface camp)</h2><canvas data-s="base"></canvas>
+<p>Left: upgrade bench with all 8 permanent upgrades: icon, name, level text plus pips (filled vs hollow, so state is not colour-only), cost with emerald icon, BUY. Row states shown: normal, hover (Fuel Tank), pressed (Drill Motor), disabled/unaffordable (Pulse Core, Extra Pick), maxed (Lantern Mount). Right: camp with Tessa (gruff engineer, hard hat + goggles, wrench), Orin (nervous cartographer, round glasses, map scroll, sweat drop), Static as a small radio on a crate with purple hum waves. Big DIVE button anchored bottom right.</p><div class="dl" data-dl="base"></div>
+<div id="crew"></div>
+
+<h2>4. Run-pick screen</h2><canvas data-s="runpick"></canvas>
+<p>Three cards over a heavily dimmed dive screen; HUD stays visible. Rarity is shown by text tag and by filled diamonds (shape, not colour). Selected card lifts 4px, gets an amber frame and a hover-state button. Effect text area holds 6 lines; current copy uses 3, so +30% length still fits.</p><div class="dl" data-dl="runpick"></div>
+
+<h2>5. Summary screen and dialogue box</h2><canvas data-s="summary"></canvas>
+<div class="dl" data-dl="summary"></div>
+<h3>Dialogue box style (three speakers)</h3><canvas data-s="dialogue"></canvas>
+<p>Plate with a 28px portrait well, a name tab that carries the speaker colour (amber Tessa, green Orin, purple Static), a 3-line text area and a bobbing continue arrow. Static's box adds flickering purple noise pixels along the top and bottom edge - the hum.</p>
+<div id="portr"></div>
+
+<h2>6. Style guide</h2>
+<h3>Pixel font: "Coalface 5x7" (original)</h3><canvas data-s="st_font" data-z="3"></canvas>
+<p>5x7 glyph, 6px advance, 9px line pitch, caps and digits only, bold = double-strike (7px advance). Chosen so ~30 chars/line at 180px panels and 55+ at full width stay readable at 1x and integer scales. Hebrew: extend the same 5x7 grid with 22 letters plus finals; the layout slots already reserve +30%. If you prefer a third-party face, an OFL pixel font is the fallback, but it would not match these 8px rules exactly.</p>
+<h3>HUD components</h3><canvas data-s="st_hud" data-z="3"></canvas>
+<p>HUD lives in the top bedrock row (16px). Hearts = HP; blue bar = fuel (16 segments, ticks at 25/50/75%); emerald count; floor; biome name (right-aligned, 134px slot = ~15 chars after +30%). Low fuel switches to orange/red, flashes between two frames and adds the word LOW! so it is not colour-only.</p>
+<h3>Buttons: normal, hover, pressed, disabled</h3><canvas data-s="st_buttons" data-z="3"></canvas>
+<p>Hover: brighter face plus a small left arrow cue. Pressed: darker face, highlight only top-left, label drops 1px. Disabled: purple-grey face, muted label, no highlight.</p>
+<h3>Icons</h3><canvas data-s="sh_icons" data-z="4"></canvas>
+<p>Left to right: Hull, Fuel Tank, Drill Motor, Pulse Core, Prospector, Salvage Contract, Extra Pick, Lantern Mount, Magnet Coil, Echo Ping. Rules: 16x16 canvas with 1px margin, 1px ink outline, 3-step ramp (light, mid, shade) lit top-left, one white or cream specular dot at most, one hero colour per icon, no text inside icons.</p>
+<h3>Palette roles</h3><div class="sw" id="sw"></div>
+<table><tr><th>Role</th><th>Indices</th></tr>
+<tr><td>Outline / void</td><td>0, 1, 2, 3 (indigo family); tunnels use 1, bedrock 2/3</td></tr>
+<tr><td>Dirt</td><td>4-9 (6 mid, 7 speckle, 5 shade, 9 lit lip)</td></tr>
+<tr><td>Emeralds / positive</td><td>11-14 (+ white glint)</td></tr>
+<tr><td>Fuel / ice / Drifter-adjacent</td><td>15-19</td></tr>
+<tr><td>Danger / hearts / Grub</td><td>20-22, 31</td></tr>
+<tr><td>Gold, rig, amber UI</td><td>23, 24, 25</td></tr>
+<tr><td>Hum / mystery / Static</td><td>28, 29</td></tr></table>
+<h3>Technical rules</h3><ul>
+<li>Internal 480x272, scale by integers only (2x = 960x544, 4x = 1920x1088, letterbox or crop 8px for 1080p).</li>
+<li>All coordinates integers; no sub-pixel movement of art, no alpha, no blur. Dither (Bayer 4x4) is used only for the lantern and dimming.</li>
+<li>HUD is 1 tile tall, in the bedrock border; nothing covers the 28x15 playfield.</li>
+<li>Text slots reserve +30%; toggle the checkbox above to see the marks. Palette check below is computed from the actual canvases.</li></ul>
+</main>
+<script>/* DEEP CORE - visual direction pixel engine.
+   Everything is drawn into an indexed 480x272 buffer of palette indices (0..31).
+   No anti-aliasing, no gradients, no sub-pixel positions: palette compliance holds by construction. */
+(function (G) {
+'use strict';
+const PAL = ['#0d0b14','#1b1630','#2c2347','#43365f','#2a1a14','#4a2c1e','#6b4128','#8f5a33','#b57a46','#d9a066','#0f2e24','#1d5c3c','#2f8f4e','#5bc46a','#a8e68a','#12264a','#1d4a8a','#2f80c4','#5bb8e8','#a8e4f5','#5a1420','#a3262e','#e0502f','#f28f2e','#f7c94b','#f4eed9','#b9b3a5','#78768a','#6b3fa0','#b66be0','#ffffff','#e84a8a'];
+const W = 480, H = 272;
+let RESERVE = false; const SLOTS = [];
+
+/* ---------- buffer ---------- */
+class Buf {
+  constructor(w, h, fill) { this.w = w; this.h = h; this.d = new Uint8Array(w * h).fill(fill || 0); }
+  px(x, y, c) { x = Math.floor(x); y = Math.floor(y); if (x < 0 || y < 0 || x >= this.w || y >= this.h) return; this.d[y * this.w + x] = c; }
+  get(x, y) { if (x < 0 || y < 0 || x >= this.w || y >= this.h) return 0; return this.d[y * this.w + x]; }
+  rect(x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.px(x + i, y + j, c); }
+  hline(x, y, w, c) { this.rect(x, y, w, 1, c); }
+  vline(x, y, h, c) { this.rect(x, y, 1, h, c); }
+  spr(s, x, y) { for (let j = 0; j < s.h; j++) for (let i = 0; i < s.w; i++) { const v = s.p[j * s.w + i]; if (v >= 0) this.px(x + i, y + j, v); } }
+  crop(x, y, w, h) { const o = new Buf(w, h); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) o.d[j * w + i] = this.get(x + i, y + j); return o; }
+}
+
+/* ---------- sprite builder: shapes -> auto top-left light + ink outline ---------- */
+class Spr {
+  constructor(w, h) { this.w = w; this.h = h; this.p = new Int16Array(w * h).fill(-1); this.id = new Int16Array(w * h).fill(-1); this.det = new Uint8Array(w * h); this.ramps = []; }
+  ramp(hi, mid, lo) { this.ramps.push([hi, mid, lo]); return this.ramps.length - 1; }
+  set(x, y, id) { if (x < 0 || y < 0 || x >= this.w || y >= this.h) return; const i = y * this.w + x; this.id[i] = id; this.det[i] = 0; this.p[i] = this.ramps[id][1]; }
+  ell(cx, cy, rx, ry, id) { for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) { const dx = (x + .5 - cx) / rx, dy = (y + .5 - cy) / ry; if (dx * dx + dy * dy <= 1) this.set(x, y, id); } }
+  rect(x, y, w, h, id) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, id); }
+  poly(pts, id) { const n = pts.length; for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) { const px = x + .5, py = y + .5; let ins = false; for (let i = 0, j = n - 1; i < n; j = i++) { const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1]; if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) ins = !ins; } if (ins) this.set(x, y, id); } }
+  dot(x, y, c) { if (x < 0 || y < 0 || x >= this.w || y >= this.h) return; const i = y * this.w + x; this.p[i] = c; this.det[i] = 1; this.id[i] = -2; }
+  drect(x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.dot(x + i, y + j, c); }
+  clear(x, y) { const i = y * this.w + x; this.p[i] = -1; this.id[i] = -1; this.det[i] = 0; }
+  ring(cx, cy, r, c) { for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) { const d = Math.hypot(x + .5 - cx, y + .5 - cy); if (Math.abs(d - r) < .55) this.dot(x, y, c); } }
+  mirror() { const w = this.w, h = this.h; for (const k of ['p', 'id', 'det']) { const a = this[k], b = a.slice(); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) a[y * w + x] = b[y * w + (w - 1 - x)]; } return this; }
+  transpose() { const w = this.w, h = this.h; if (w !== h) throw new Error('transpose needs square'); for (const k of ['p', 'id', 'det']) { const a = this[k], b = a.slice(); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) a[y * w + x] = b[x * w + y]; } return this; }
+  finish(out) {
+    out = out || 0; const w = this.w, h = this.h, q = new Int16Array(w * h).fill(-1);
+    const F = (x, y) => x >= 0 && y >= 0 && x < w && y < h && this.p[y * w + x] >= 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (this.p[i] < 0) continue;
+      if (this.det[i]) { q[i] = this.p[i]; continue; }
+      const r = this.ramps[this.id[i]]; const a = !F(x, y - 1) || !F(x - 1, y), b = !F(x, y + 1) || !F(x + 1, y);
+      q[i] = (a && !b) ? r[0] : ((b && !a) ? r[2] : r[1]);
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (!F(x, y) && (F(x + 1, y) || F(x - 1, y) || F(x, y + 1) || F(x, y - 1))) q[i] = out; }
+    return { w, h, p: q };
+  }
+}
+
+/* ---------- original 5x7 pixel font: "Coalface 5x7" (caps + digits, 6px advance, 9px line pitch) ---------- */
+const GLY = [
+['A','.###. #...# #...# ##### #...# #...# #...#'],['B','####. #...# #...# ####. #...# #...# ####.'],['C','.###. #...# #.... #.... #.... #...# .###.'],['D','####. #...# #...# #...# #...# #...# ####.'],
+['E','##### #.... #.... ####. #.... #.... #####'],['F','##### #.... #.... ####. #.... #.... #....'],['G','.###. #...# #.... #.### #...# #...# .###.'],['H','#...# #...# #...# ##### #...# #...# #...#'],
+['I','.###. ..#.. ..#.. ..#.. ..#.. ..#.. .###.'],['J','..### ...#. ...#. ...#. ...#. #..#. .##..'],['K','#...# #..#. #.#.. ##... #.#.. #..#. #...#'],['L','#.... #.... #.... #.... #.... #.... #####'],
+['M','#...# ##.## #.#.# #.#.# #...# #...# #...#'],['N','#...# ##..# #.#.# #..## #...# #...# #...#'],['O','.###. #...# #...# #...# #...# #...# .###.'],['P','####. #...# #...# ####. #.... #.... #....'],
+['Q','.###. #...# #...# #...# #.#.# #..#. .##.#'],['R','####. #...# #...# ####. #.#.. #..#. #...#'],['S','.#### #.... #.... .###. ....# ....# ####.'],['T','##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..'],
+['U','#...# #...# #...# #...# #...# #...# .###.'],['V','#...# #...# #...# #...# #...# .#.#. ..#..'],['W','#...# #...# #...# #.#.# #.#.# ##.## #...#'],['X','#...# #...# .#.#. ..#.. .#.#. #...# #...#'],
+['Y','#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..'],['Z','##### ....# ...#. ..#.. .#... #.... #####'],
+['0','.###. #...# #..## #.#.# ##..# #...# .###.'],['1','..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.'],['2','.###. #...# ....# ...#. ..#.. .#... #####'],['3','####. ....# ....# .###. ....# ....# ####.'],
+['4','...#. ..##. .#.#. #..#. ##### ...#. ...#.'],['5','##### #.... ####. ....# ....# #...# .###.'],['6','.###. #.... #.... ####. #...# #...# .###.'],['7','##### ....# ...#. ..#.. .#... .#... .#...'],
+['8','.###. #...# #...# .###. #...# #...# .###.'],['9','.###. #...# #...# .#### ....# ....# .###.'],
+['.','..... ..... ..... ..... ..... .##.. .##..'],[',','..... ..... ..... ..... .##.. ..#.. .#...'],[':','..... .##.. .##.. ..... .##.. .##.. .....'],['-','..... ..... ..... ##### ..... ..... .....'],
+['+','..... ..#.. ..#.. ##### ..#.. ..#.. .....'],['/','....# ....# ...#. ..#.. .#... #.... #....'],['!','..#.. ..#.. ..#.. ..#.. ..#.. ..... ..#..'],['?','.###. #...# ....# ...#. ..#.. ..... ..#..'],
+["'",'..#.. ..#.. .#... ..... ..... ..... .....'],['%','##..# ##..# ...#. ..#.. .#... #..## #..##'],['(','...#. ..#.. .#... .#... .#... ..#.. ...#.'],[')','.#... ..#.. ...#. ...#. ...#. ..#.. .#...'],
+['#','.#.#. ##### .#.#. .#.#. ##### .#.#. .....'],['>','#.... .#... ..#.. ...#. ..#.. .#... #....'],['<','....# ...#. ..#.. .#... ..#.. ...#. ....#'],['*','.#.#. ..#.. ##### ..#.. .#.#. ..... .....'],
+['=','..... ##### ..... ##### ..... ..... .....'],['_','..... ..... ..... ..... ..... ..... #####'],['[','.###. .#... .#... .#... .#... .#... .###.'],[']','.###. ...#. ...#. ...#. ...#. ...#. .###.'],
+['"','.#.#. .#.#. ..... ..... ..... ..... .....'],['$','.#### #.#.. .###. ..#.# ####. ..#.. .....']
+];
+const FONT = {};
+GLY.forEach(([c, r]) => { FONT[c] = r.split(' ').map(row => { let v = 0; for (let i = 0; i < 5; i++) v = (v << 1) | (row[i] === '#' ? 1 : 0); return v; }); });
+const adv = bold => bold ? 7 : 6;
+function tw(s, bold) { s = String(s); return s.length * adv(bold) - 1; }
+function text(b, s, x, y, c, o) {
+  o = o || {}; s = String(s).toUpperCase(); const a = adv(o.bold);
+  const pass = (dx, dy, col) => { let cx = x + dx; for (const ch of s) { const g = FONT[ch]; if (g) for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if ((g[j] >> (4 - i)) & 1) { b.px(cx + i, y + dy + j, col); if (o.bold) b.px(cx + i + 1, y + dy + j, col); } cx += a; } };
+  if (o.sh != null) pass(1, 1, o.sh); pass(0, 0, c);
+}
+function ctext(b, s, cx, y, c, o) { text(b, s, cx - Math.floor(tw(s, o && o.bold) / 2), y, c, o); }
+function reserveMark(b, x, y, w) { for (let i = 0; i < w; i += 2) b.px(x + i, y + 9, 31); b.px(x + w, y + 7, 31); b.px(x + w, y + 8, 31); b.px(x + w, y + 9, 31); }
+function slot(b, s, x, y, maxw, c, o) {
+  o = o || {}; const w = tw(s, o.bold); SLOTS.push({ s: String(s), w, max: maxw, ok: w * 1.3 <= maxw + 0.01 });
+  let xx = x; if (o.align === 'r') xx = x + maxw - w; else if (o.align === 'c') xx = x + Math.floor((maxw - w) / 2);
+  text(b, s, xx, y, c, o); if (RESERVE) reserveMark(b, x, y, maxw);
+}
+function wrap(s, maxw) { const words = String(s).split(' '); const lines = []; let cur = ''; for (const w of words) { const t = cur ? cur + ' ' + w : w; if (tw(t) <= maxw) cur = t; else { if (cur) lines.push(cur); cur = w; } } if (cur) lines.push(cur); return lines; }
+function slotWrap(b, s, x, y, maxw, maxLines, c, o) {
+  const lines = wrap(s, maxw); const l130 = wrap(s, Math.floor(maxw / 1.3));
+  SLOTS.push({ s: String(s).slice(0, 28) + '..', w: lines.length, max: maxLines, ok: l130.length <= maxLines, wrap: true });
+  lines.forEach((l, i) => text(b, l, x, y + i * 9, c, o));
+  if (RESERVE) { for (let i = 0; i < maxLines * 9; i += 2) b.px(x + maxw, y + i, 31); }
+  return lines.length;
+}
+
+/* ---------- palette helpers ---------- */
+const C = { ink: 0, n1: 1, n2: 2, n3: 3, cream: 25, grey: 26, steel: 27, white: 30, pink: 31 };
+const CHAINS = [[0,4,5,6,7,8,9],[0,1,2,3],[0,10,11,12,13,14],[0,15,16,17,18,19],[0,20,21,22,23,24],[0,3,27,26,25,30],[0,2,28,29],[0,20,21,31]];
+function darken(c, n) { if (c === 0 || n <= 0) return c; for (const ch of CHAINS) { const p = ch.indexOf(c); if (p > 0) return ch[Math.max(0, p - n)]; } return c; }
+const BAY = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+const bay = (x, y) => (BAY[y & 3][x & 3] + 0.5) / 16;
+function rng(seed) { let s = (seed * 2654435761 >>> 0) || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+
+/* ---------- sprites ---------- */
+const cache = {};
+const memo = (k, f) => cache[k] || (cache[k] = f());
+
+function rigSide(f) {
+  const s = new Spr(16, 16); const T = s.ramp(27, 3, 2), A = s.ramp(24, 23, 22), S = s.ramp(26, 27, 3), E = s.ramp(30, 25, 26), K = s.ramp(1, 0, 0); const o = f;
+  s.ell(4, 12.8, 2.7, 2.7, T); s.ell(10, 12.8, 2.7, 2.7, T);
+  s.rect(1, 8 + o, 11, 4, A); s.rect(11, 8 + o, 1, 4, A);
+  s.drect(2, 10 + o, 4, 1, 22); s.dot(11, 9 + o, 24);
+  if (!f) {
+    s.poly([[11, 8.2], [15, 5.4], [15, 10.8]], K);
+    s.poly([[10.6, 7.6], [15, 3.4], [15, 5.8], [11.2, 8.6]], S); s.poly([[10.6, 9.4], [15, 12.4], [15, 10.2], [11.2, 8.8]], S);
+    s.dot(14, 6, 25); s.dot(12, 7, 25); s.dot(14, 10, 25); s.dot(12, 9, 25);
+  } else {
+    s.poly([[10.6, 8.4], [15, 7.8], [15, 9.8], [11.2, 10.2]], S); s.poly([[10.6, 10.4], [15, 9.8], [15, 11.6], [11.2, 12]], S);
+    s.dot(14, 9, 25); s.dot(12, 9, 25); s.dot(13, 10, 25); s.dot(15, 8, 24); s.dot(15, 6, 25); s.dot(14, 5, 24);
+  }
+  const ey = f ? 4.5 : 5.5; s.ell(3.8, ey, 2.3, 2.3, E); s.ell(9.2, ey - 0.3, 2.3, 2.3, E);
+  s.drect(4, Math.round(ey - 0.5), 1, 2, 0); s.drect(10, Math.round(ey - 0.8), 1, 2, 0);
+  s.dot(f ? 4 : 3, f ? 13 : 12, 26); s.dot(f ? 10 : 9, f ? 13 : 12, 26);
+  s.dot(0, f ? 7 : 9, 26); if (f) s.dot(0, 9, 26); else s.dot(0, 7, 26);
+  return s;
+}
+function rigDown(f) {
+  const s = new Spr(16, 16); const T = s.ramp(27, 3, 2), A = s.ramp(24, 23, 22), S = s.ramp(26, 27, 3), E = s.ramp(30, 25, 26);
+  s.rect(0, 6, 3, 9, T); s.rect(13, 6, 3, 9, T); for (let y = 7 + f; y < 14; y += 2) { s.dot(1, y, 1); s.dot(14, y, 1); }
+  s.rect(2, 5, 12, 10, A);
+  const ey = f ? 3.4 : 4.3; s.ell(5.3, ey, 2.6, 2.6, E); s.ell(10.7, ey, 2.6, 2.6, E);
+  s.drect(5, f ? 4 : 5, 2, 2, 0); s.drect(10, f ? 4 : 5, 2, 2, 0);
+  s.rect(3, 9, 10, 5, S);
+  if (!f) { s.drect(4, 10, 8, 3, 0); [4, 6, 8, 10].forEach(x => s.dot(x, 10, 25)); [5, 7, 9, 11].forEach(x => s.dot(x, 12, 25)); }
+  else { s.drect(4, 11, 8, 1, 0); [4, 6, 8, 10].forEach(x => s.dot(x, 10, 25)); [5, 7, 9, 11].forEach(x => s.dot(x, 12, 25)); s.dot(2, 15, 26); s.dot(13, 15, 26); }
+  s.dot(7, 7, 24); s.dot(8, 7, 24);
+  return s;
+}
+function rigUp(f) {
+  const s = new Spr(16, 16); const T = s.ramp(27, 3, 2), A = s.ramp(24, 23, 22), S = s.ramp(26, 27, 3), E = s.ramp(30, 25, 26);
+  s.rect(0, 8, 3, 8, T); s.rect(13, 8, 3, 8, T); for (let y = 9 + f; y < 15; y += 2) { s.dot(1, y, 1); s.dot(14, y, 1); }
+  s.rect(2, 9, 12, 6, A); s.drect(5, 13, 6, 1, 22);
+  const ey = f ? 8.4 : 9.2; s.ell(5.3, ey, 2.5, 2.5, E); s.ell(10.7, ey, 2.5, 2.5, E);
+  s.drect(5, f ? 7 : 8, 2, 2, 0); s.drect(10, f ? 7 : 8, 2, 2, 0);
+  if (!f) { s.poly([[3.4, 7], [0.8, 1.6], [3.6, 2], [5.6, 6.4]], S); s.poly([[12.6, 7], [15.2, 1.6], [12.4, 2], [10.4, 6.4]], S); s.dot(2, 3, 25); s.dot(13, 3, 25); s.dot(3, 5, 25); s.dot(12, 5, 25); }
+  else { s.poly([[3.4, 7], [6.6, 1.6], [7.6, 2.6], [5.6, 6.6]], S); s.poly([[12.6, 7], [9.4, 1.6], [8.4, 2.6], [10.4, 6.6]], S); s.dot(7, 4, 25); s.dot(8, 4, 25); s.dot(7, 0, 24); s.dot(8, 0, 24); }
+  s.dot(f ? 4 : 5, 15, 26);
+  return s;
+}
+function rig(dir, frame) {
+  return memo('rig' + dir + frame, () => {
+    let s; if (dir === 'right' || dir === 'left') { s = rigSide(frame); if (dir === 'left') s.mirror(); } else s = dir === 'down' ? rigDown(frame) : rigUp(frame);
+    return s.finish(0);
+  });
+}
+function bag(squash) {
+  return memo('bag' + squash, () => {
+    const s = new Spr(16, 16); const G_ = s.ramp(25, 24, 23);
+    const dollar = (y0) => { s.drect(7, y0, 3, 1, 21); s.dot(7, y0 + 1, 21); s.dot(8, y0 + 2, 21); s.dot(9, y0 + 3, 21); s.drect(7, y0 + 4, 3, 1, 21); s.dot(8, y0 - 1, 21); s.dot(8, y0 + 5, 21); };
+    if (!squash) { s.ell(8, 10, 6.3, 5.3, G_); s.poly([[5, 3.5], [11, 3.5], [10.4, 6], [5.6, 6]], G_); s.drect(5, 6, 6, 1, 22); s.drect(7, 3, 2, 1, 22); dollar(9); }
+    else { s.ell(8, 11.5, 7.2, 4, G_); s.poly([[6, 5.8], [10, 5.8], [9.6, 7.6], [6.4, 7.6]], G_); s.drect(6, 7, 4, 1, 22); dollar(9); }
+    return s.finish(0);
+  });
+}
+function nugget() { return memo('nug', () => { const s = new Spr(8, 8); const G_ = s.ramp(25, 24, 23); s.ell(4, 4.2, 3.2, 2.7, G_); s.dot(3, 3, 25); return s.finish(0); }); }
+function emerald(small) {
+  return memo('em' + small, () => {
+    if (small) { const s = new Spr(11, 11); const G_ = s.ramp(14, 13, 12), L = s.ramp(12, 11, 11); s.poly([[5.5, 1], [9.5, 3.4], [9.5, 7.6], [5.5, 10], [1.5, 7.6], [1.5, 3.4]], G_); s.poly([[5.5, 5.5], [9.5, 3.4], [9.5, 7.6], [5.5, 10]], L); s.dot(3, 3, 30); s.dot(4, 2, 30); return s.finish(0); }
+    const s = new Spr(16, 16); const G_ = s.ramp(14, 13, 12), L = s.ramp(12, 11, 11);
+    s.poly([[8, 2], [13, 5], [13, 11], [8, 14.5], [3, 11], [3, 5]], G_); s.poly([[8, 8], [13, 5], [13, 11], [8, 14.5]], L);
+    [[4, 5], [5, 6], [6, 7], [7, 8], [8, 8], [9, 8], [10, 7], [11, 6], [12, 5]].forEach(p => s.dot(p[0], p[1], 12));
+    s.dot(6, 4, 30); s.dot(5, 5, 30); s.dot(7, 3, 14);
+    return s.finish(0);
+  });
+}
+function fuelCan(small) {
+  return memo('fuel' + small, () => {
+    if (small) { const s = new Spr(11, 11); const B = s.ramp(19, 18, 17), K = s.ramp(26, 27, 3); s.rect(2, 4, 7, 6, B); s.rect(6, 1, 3, 3, K); s.drect(3, 6, 5, 2, 25); s.dot(5, 7, 17); return s.finish(0); }
+    const s = new Spr(16, 16); const B = s.ramp(19, 18, 17), K = s.ramp(26, 27, 3);
+    s.rect(3, 5, 10, 9, B); s.rect(4, 2, 5, 3, K); s.clear(5, 3); s.clear(6, 3); s.clear(7, 3); s.rect(10, 2, 3, 3, K);
+    s.drect(5, 8, 6, 4, 25); s.drect(6, 9, 4, 1, 17); s.drect(7, 10, 2, 1, 17); s.drect(3, 6, 10, 1, 16);
+    return s.finish(0);
+  });
+}
+function nest(frame) {
+  return memo('nest' + frame, () => {
+    const s = new Spr(16, 16); const N = s.ramp(8, 7, 6), E = s.ramp(25, 25, 26); const o = frame ? 1 : 0;
+    s.ell(8, 12.2, 7.2, 3.6, N); s.ell(5, 9.5 - o, 2.2, 2.8, E); s.ell(9, 8.6 - (1 - o), 2.4, 3.1, E); s.ell(12.2, 10 - o, 1.9, 2.4, E);
+    s.dot(5, 9 - o, 31); s.dot(9, 8 - (1 - o), 31); s.dot(10, 9 - (1 - o), 31); s.dot(12, 10 - o, 31);
+    [[2, 11], [13, 13], [6, 14], [10, 13]].forEach(p => s.dot(p[0], p[1], 5));
+    const g = frame ? [[2, 3], [9, 2], [14, 4]] : [[4, 2], [8, 1], [13, 3]]; g.forEach(p => s.dot(p[0], p[1], 29));
+    return s.finish(0);
+  });
+}
+function exitShaft(frame) {
+  return memo('exit' + frame, () => {
+    const s = new Spr(16, 16); const S = s.ramp(26, 27, 3);
+    s.rect(1, 1, 14, 14, S);
+    s.drect(3, 3, 1, 11, 0); s.drect(12, 3, 1, 11, 0); s.drect(4, 2, 8, 1, 0);
+    s.drect(4, 3, 8, 3, 25); s.drect(4, 6, 8, 4, 24); s.drect(4, 10, 8, 4, 23);
+    s.dot(4, 3, 27); s.dot(11, 3, 27);
+    s.drect(5, 3, 1, 11, 7); s.drect(10, 3, 1, 11, 7);
+    for (let y = 4 + frame; y < 14; y += 3) s.drect(5, y, 6, 1, 8);
+    return s.finish(0);
+  });
+}
+function grub(frame, dir) {
+  return memo('grub' + frame + dir, () => {
+    const s = new Spr(16, 16); const G_ = s.ramp(31, 22, 21); const h = frame ? 1 : 0;
+    s.ell(3.4 + h, 11.2, 2.9, 2.7, G_); s.ell(6.5, 10.2 - h, 3.2, 3.1, G_); s.ell(9.5, 9.2 - h, 3.4, 3.4, G_); s.ell(12, 8.4, 3, 3.3, G_);
+    [[5, 9, 12], [8, 7 - h, 11], [10, 6, 10]].forEach(([x, a, b]) => { for (let y = a; y <= b; y++) if (s.p[y * 16 + x] >= 0) s.dot(x, y, 20); });
+    s.drect(11, 6, 3, 2, 25); s.dot(13, 7, 0); s.dot(11, 5, 0); s.dot(12, 5, 0); s.dot(14, 10, 25); s.dot(14, 11, 25);
+    if (dir < 0) s.mirror(); return s.finish(0);
+  });
+}
+function grubSquash() { return memo('grubsq', () => { const s = new Spr(16, 16); const G_ = s.ramp(31, 22, 21); s.ell(8, 12.8, 7.2, 2.6, G_); s.dot(10, 11, 0); s.dot(12, 11, 0); s.dot(11, 12, 0); s.dot(10, 13, 0); s.dot(12, 13, 0); s.dot(5, 12, 20); s.dot(7, 13, 20); return s.finish(0); }); }
+function burrower(frame) {
+  return memo('burr' + frame, () => {
+    const s = new Spr(16, 16); const P = s.ramp(29, 28, 2), K = s.ramp(25, 26, 27); const e = frame ? 0.9 : 0;
+    s.poly([[4.5, 6], [1.6 - e, 8.5], [1.6 - e, 12.5], [3.2, 14.2], [5.2, 11.5]], K);
+    s.poly([[11.5, 6], [14.4 + e, 8.5], [14.4 + e, 12.5], [12.8, 14.2], [10.8, 11.5]], K);
+    s.ell(8, 6.8, 3.8, 4.6, P); s.poly([[6.3, 10], [9.7, 10], [8, 14.5]], P);
+    s.poly([[5, 3.4], [5.8, 0.9], [7.2, 3]], P); s.poly([[8.8, 3], [10.2, 0.9], [11, 3.4]], P);
+    s.drect(6, 5, 2, 2, 25); s.drect(9, 5, 2, 2, 25); s.dot(7, 6, 0); s.dot(10, 6, 0); s.dot(8, 13, 31);
+    return s.finish(0);
+  });
+}
+function spitter(frame, dir) {
+  return memo('spit' + frame + dir, () => {
+    const s = new Spr(16, 16); const G_ = s.ramp(12, 11, 10), B = s.ramp(26, 27, 3), O = s.ramp(24, 23, 22); const rc = frame ? 1 : 0;
+    s.ell(6.5, 10.5, 5.2, 4.2, G_); s.ell(7, 6.8, 3.8, 3.6, G_);
+    s.poly([[4.5, 4], [5.6, 1], [6.7, 3.5]], O); s.poly([[6.9, 3.2], [8, 0.6], [9.1, 3]], O);
+    s.rect(10 - rc, 5, 5, 4, B); s.drect(14 - rc, 6, 1, 2, 23);
+    if (frame) { s.dot(15, 6, 24); s.dot(15, 7, 25); }
+    s.drect(6, 5, 3, 2, 25); s.dot(8, 6, 0); s.drect(5, 4, 4, 1, 0); s.drect(4, 12, 5, 1, 10);
+    if (dir < 0) s.mirror(); return s.finish(0);
+  });
+}
+function drifter(frame) {
+  return memo('drift' + frame, () => {
+    const s = new Spr(16, 16); const G_ = s.ramp(25, 26, 27); const b = frame ? 1 : 0;
+    s.ell(8, 6.3 + b, 5.2, 4.6, G_); s.rect(3, 7 + b, 10, 4, G_);
+    for (let i = 0; i < 4; i++) s.rect(3 + i * 3, 11 + b, 2, ((i + frame) % 2) ? 3 : 2, G_);
+    const f = s.finish(0);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const dx = (x + .5 - 8) / 3.9, dy = (y + .5 - (8 + b)) / 3.1; if (dx * dx + dy * dy <= 1 && ((x + y) & 1)) f.p[y * 16 + x] = -1; }
+    [[5, 6], [5, 7], [5, 8], [10, 6], [10, 7], [10, 8]].forEach(p => { f.p[(p[1] + b) * 16 + p[0]] = 0; });
+    return f;
+  });
+}
+function spitBolt() { return memo('bolt', () => { const s = new Spr(8, 8); const R = s.ramp(30, 31, 22); s.poly([[4, 0.5], [7.5, 4], [4, 7.5], [0.5, 4]], R); s.dot(3, 3, 30); return s.finish(0); }); }
+function heart(full) { return memo('heart' + full, () => { const s = new Spr(11, 10); const R = full ? s.ramp(31, 22, 21) : s.ramp(3, 2, 2); s.ell(3.4, 3.4, 2.9, 2.7, R); s.ell(7.6, 3.4, 2.9, 2.7, R); s.poly([[0.7, 4], [10.3, 4], [5.5, 9.3]], R); if (full) s.dot(2, 2, 30); return s.finish(0); }); }
+
+/* upgrade + card icons (16x16) */
+function icon(name) {
+  return memo('ic' + name, () => {
+    const s = new Spr(16, 16);
+    const ST = s.ramp(26, 27, 3), AM = s.ramp(24, 23, 22), GD = s.ramp(25, 24, 23), WD = s.ramp(8, 7, 6), PU = s.ramp(29, 28, 2), CR = s.ramp(25, 26, 27);
+    switch (name) {
+      case 'hull': s.poly([[8, 1.5], [14, 3.5], [13.5, 9], [8, 14.5], [2.5, 9], [2, 3.5]], ST); s.drect(7, 4, 2, 8, 23); s.drect(5, 7, 6, 2, 23); s.dot(4, 4, 30); s.dot(5, 3, 30); break;
+      case 'fuel': return fuelCan(false);
+      case 'drill': s.ell(8, 8, 5, 5, ST); s.rect(6, 1, 4, 2, ST); s.rect(6, 13, 4, 2, ST); s.rect(1, 6, 2, 4, ST); s.rect(13, 6, 2, 4, ST); s.rect(3, 3, 2, 2, ST); s.rect(11, 3, 2, 2, ST); s.rect(3, 11, 2, 2, ST); s.rect(11, 11, 2, 2, ST); s.drect(6, 6, 4, 4, 1); s.drect(7, 7, 2, 2, 23); s.dot(7, 7, 24); break;
+      case 'pulse': s.ell(8, 8, 5.2, 5.2, PU); s.ell(8, 8, 2.2, 2.2, CR); s.dot(7, 7, 30); [[8, 0], [8, 15], [0, 8], [15, 8], [2, 2], [13, 2], [2, 13], [13, 13]].forEach(p => s.dot(p[0], p[1], 29)); break;
+      case 'prospector': s.poly([[7, 3], [11, 5.4], [11, 9.6], [7, 12.6], [3, 9.6], [3, 5.4]], s.ramp(14, 13, 12)); s.poly([[7, 7.5], [11, 5.4], [11, 9.6], [7, 12.6]], s.ramp(12, 11, 11)); s.dot(5, 5, 30); [[13, 1], [13, 2], [13, 3], [12, 2], [14, 2]].forEach(p => s.dot(p[0], p[1], 25)); s.dot(2, 13, 25); s.dot(1, 13, 25); s.dot(3, 13, 25); s.dot(2, 12, 25); s.dot(2, 14, 25); break;
+      case 'salvage': s.rect(2, 2, 9, 12, CR); s.drect(4, 4, 5, 1, 27); s.drect(4, 6, 5, 1, 27); s.drect(4, 8, 3, 1, 27); s.ell(11.5, 11, 3.4, 3.4, GD); s.dot(11, 10, 21); s.dot(11, 11, 21); s.dot(11, 12, 21); break;
+      case 'pick': s.poly([[7, 6], [9, 6], [5.4, 14], [3.4, 14]], WD); s.poly([[2.5, 6.5], [8, 1.8], [14, 5], [14, 7.2], [8, 4.4], [3.8, 8.4]], ST); break;
+      case 'lantern': s.rect(5, 4, 6, 8, GD); s.rect(4, 3, 8, 2, ST); s.rect(4, 12, 8, 2, ST); s.drect(7, 6, 2, 4, 22); s.dot(7, 1, 27); s.dot(8, 1, 27); s.dot(6, 2, 27); s.dot(9, 2, 27); s.dot(1, 8, 24); s.dot(14, 8, 24); s.dot(2, 5, 24); s.dot(13, 5, 24); break;
+      case 'magnet': s.ell(8, 8.5, 6, 6, ST); s.ell(8, 8.5, 3, 3, ST); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const dx = (x + .5 - 8) / 3, dy = (y + .5 - 8.5) / 3; if (dx * dx + dy * dy <= 1) s.clear(x, y); } for (let y = 0; y < 9; y++) for (let x = 5; x < 11; x++) s.clear(x, y); s.drect(2, 1, 3, 3, 22); s.drect(11, 1, 3, 3, 18); break;
+      case 'ping': s.ring(8, 8, 3, 18); s.ring(8, 8, 5.6, 19); s.ring(8, 8, 7.4, 17); s.drect(7, 7, 2, 2, 25); break;
+      default: break;
+    }
+    return s.finish(0);
+  });
+}
+
+/* crew */
+function tessa() {
+  return memo('tessa', () => {
+    const s = new Spr(16, 24); const SK = s.ramp(9, 8, 7), HT = s.ramp(25, 24, 23), OV = s.ramp(17, 16, 15), BT = s.ramp(6, 5, 4), ST = s.ramp(26, 27, 3);
+    s.rect(3, 12, 10, 8, OV); s.rect(4, 20, 3, 3, BT); s.rect(9, 20, 3, 3, BT); s.rect(2, 13, 2, 5, OV); s.rect(12, 13, 2, 5, OV);
+    s.rect(2, 18, 2, 2, SK); s.rect(12, 18, 2, 2, SK); s.ell(8, 8.6, 4.3, 3.7, SK);
+    s.ell(8, 5.4, 5, 3.2, HT); s.rect(2, 6, 12, 2, HT); s.dot(7, 3, 30); s.dot(8, 3, 30);
+    s.drect(4, 6, 3, 2, 18); s.drect(9, 6, 3, 2, 18); s.dot(4, 6, 19); s.dot(9, 6, 19);
+    s.dot(6, 9, 0); s.dot(10, 9, 0); s.drect(5, 8, 2, 1, 0); s.drect(9, 8, 2, 1, 0); s.drect(7, 11, 3, 1, 0);
+    s.rect(14, 15, 2, 8, ST);
+    return s.finish(0);
+  });
+}
+function orin() {
+  return memo('orin', () => {
+    const s = new Spr(16, 24); const SK = s.ramp(25, 9, 8), HR = s.ramp(29, 28, 2), CT = s.ramp(13, 12, 11), CR = s.ramp(25, 26, 27), BT = s.ramp(6, 5, 4);
+    s.rect(4, 14, 8, 8, CT); s.rect(5, 22, 2, 2, BT); s.rect(9, 22, 2, 2, BT); s.rect(3, 15, 2, 5, CT); s.rect(11, 15, 2, 5, CT);
+    s.rect(3, 20, 2, 2, SK); s.rect(11, 20, 2, 2, SK); s.rect(12, 14, 3, 8, CR);
+    s.ell(8, 9, 4.2, 4.2, SK); s.ell(8, 5.6, 4.8, 3.2, HR); s.dot(3, 4, 29); s.dot(12, 3, 29);
+    s.drect(3, 7, 5, 5, 0); s.drect(9, 7, 5, 5, 0); s.drect(4, 8, 3, 3, 25); s.drect(10, 8, 3, 3, 25); s.dot(6, 9, 0); s.dot(11, 9, 0); s.dot(8, 9, 0);
+    s.drect(7, 12, 2, 1, 21);
+    s.dot(14, 5, 19); s.dot(14, 6, 18); s.dot(14, 7, 18);
+    return s.finish(0);
+  });
+}
+function radio(frame) {
+  return memo('radio' + frame, () => {
+    const s = new Spr(16, 16); const R = s.ramp(26, 27, 3);
+    s.rect(2, 6, 12, 9, R); s.drect(4, 8, 4, 3, 29); s.dot(5, 9, 25); s.drect(9, 8, 4, 1, 0); s.drect(9, 10, 4, 1, 0); s.drect(9, 12, 4, 1, 0); s.dot(4, 12, 22); s.dot(6, 12, 24);
+    s.dot(11, 4, 27); s.dot(12, 3, 27); s.dot(12, 2, 27); s.dot(13, 1, 27); s.dot(13, 0, 29);
+    if (frame) { s.dot(0, 7, 29); s.dot(0, 9, 29); s.dot(15, 7, 29); s.dot(15, 9, 29); } else { s.dot(1, 5, 29); s.dot(1, 11, 29); s.dot(14, 5, 29); }
+    return s.finish(0);
+  });
+}
+function portrait(who) {
+  return memo('pt' + who, () => {
+    const s = new Spr(24, 24);
+    if (who === 'tessa') {
+      const SK = s.ramp(9, 8, 7), HT = s.ramp(25, 24, 23), OV = s.ramp(17, 16, 15);
+      s.rect(5, 19, 14, 5, OV); s.ell(12, 14, 6.6, 6.2, SK); s.ell(12, 7.5, 8.5, 5, HT); s.rect(3, 9, 18, 2, HT); s.drect(11, 3, 2, 2, 30);
+      s.drect(6, 9, 5, 3, 18); s.drect(13, 9, 5, 3, 18); s.dot(6, 9, 19); s.dot(13, 9, 19); s.drect(6, 12, 5, 1, 0); s.drect(13, 12, 5, 1, 0);
+      s.drect(7, 14, 2, 2, 0); s.drect(15, 14, 2, 2, 0); s.drect(6, 13, 3, 1, 0); s.drect(15, 13, 3, 1, 0); s.drect(9, 19, 6, 1, 0); s.dot(8, 18, 0); s.dot(15, 18, 0);
+    } else if (who === 'orin') {
+      const SK = s.ramp(25, 9, 8), HR = s.ramp(29, 28, 2), CT = s.ramp(13, 12, 11);
+      s.rect(6, 20, 12, 4, CT); s.ell(12, 13, 6.4, 7, SK); s.ell(12, 8, 7.4, 4.6, HR); s.dot(4, 7, 29); s.dot(19, 6, 29);
+      s.drect(5, 11, 6, 6, 0); s.drect(13, 11, 6, 6, 0); s.drect(6, 12, 4, 4, 25); s.drect(14, 12, 4, 4, 25); s.drect(8, 13, 2, 2, 0); s.drect(14, 13, 2, 2, 0); s.drect(11, 13, 2, 1, 0);
+      s.drect(10, 19, 4, 1, 21); s.dot(21, 8, 19); s.dot(21, 9, 18); s.dot(21, 10, 18); s.dot(20, 10, 18);
+    } else {
+      const R = s.ramp(26, 27, 3);
+      s.rect(2, 7, 20, 15, R); s.dot(18, 5, 27); s.dot(19, 4, 27); s.dot(20, 3, 27); s.dot(21, 2, 27); s.dot(21, 1, 29);
+      for (let y = 10; y < 19; y += 2) s.drect(4, y, 6, 1, 0);
+      s.drect(12, 10, 8, 9, 1); [[13, 3], [15, 6], [17, 4], [19, 7]].forEach((b, i) => { s.drect(b[0], 18 - b[1], 2, b[1], i % 2 ? 29 : 28); });
+      s.dot(0, 10, 29); s.dot(0, 13, 29); s.dot(23, 10, 29); s.dot(23, 13, 29);
+    }
+    return s.finish(0);
+  });
+}
+
+/* ---------- themes + tiles ---------- */
+const THEMES = {
+  A: { key: 'A', name: 'EMBER HEARTH', dirt: { mid: 6, hi: 7, lo: 5, peb: 8, pebLo: 4, lit: 9, rim: 4, shade: 5 }, floor: 1, fspeck: 2, shadow: 0, hud: { plate: 1, top: 3, low: 2, txt: 25, acc: 24 } },
+  B: { key: 'B', name: 'LANTERN DARK', dirt: { mid: 5, hi: 6, lo: 4, peb: 7, pebLo: 4, lit: 7, rim: 0, shade: 4 }, floor: 0, fspeck: 1, shadow: 0, lantern: true, hud: { plate: 0, top: 10, low: 1, txt: 19, acc: 13 } }
+};
+const NOM = { n: 0, e: 0, s: 0, w: 0, nw: 0, ne: 0, sw: 0, se: 0 };
+function drawDirt(b, ox, oy, T, seed, m) {
+  m = m || NOM; const r = rng(seed + 11); const D = T.dirt; const t = new Uint8Array(256).fill(D.mid);
+  for (let k = 0; k < 256; k++) { const v = r(); if (v < 0.07) t[k] = D.hi; else if (v < 0.12) t[k] = D.lo; }
+  for (let n = 0; n < 4; n++) { const x = Math.floor(r() * 12), y = Math.floor(r() * 16), c = r() < 0.5 ? D.hi : D.lo; for (let i = 0; i < 3; i++) t[y * 16 + x + i] = c; }
+  if (r() < 0.5) { const x = 3 + Math.floor(r() * 9), y = 3 + Math.floor(r() * 9); t[y * 16 + x] = D.peb; t[y * 16 + x + 1] = D.peb; t[(y + 1) * 16 + x] = D.pebLo; t[(y + 1) * 16 + x + 1] = D.pebLo; }
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let c = t[y * 16 + x], best = 99, side = '';
+    if (m.n && y < best) { best = y; side = 'n'; } if (m.w && x < best) { best = x; side = 'w'; } if (m.s && 15 - y < best) { best = 15 - y; side = 's'; } if (m.e && 15 - x < best) { best = 15 - x; side = 'e'; }
+    if (best === 0) c = D.rim; else if (best === 1) c = (side === 'n' || side === 'w') ? D.lit : D.shade;
+    if (m.n && m.w && x + y < 2) c = T.floor; if (m.n && m.e && (15 - x) + y < 2) c = T.floor; if (m.s && m.w && x + (15 - y) < 2) c = T.floor; if (m.s && m.e && (15 - x) + (15 - y) < 2) c = T.floor;
+    if (m.nw && !m.n && !m.w) { if (x === 0 && y === 0) c = T.floor; else if (x + y === 1) c = D.rim; }
+    if (m.ne && !m.n && !m.e) { if (x === 15 && y === 0) c = T.floor; else if ((15 - x) + y === 1) c = D.rim; }
+    if (m.sw && !m.s && !m.w) { if (x === 0 && y === 15) c = T.floor; else if (x + (15 - y) === 1) c = D.rim; }
+    if (m.se && !m.s && !m.e) { if (x === 15 && y === 15) c = T.floor; else if ((15 - x) + (15 - y) === 1) c = D.rim; }
+    b.px(ox + x, oy + y, c);
+  }
+}
+function drawFloor(b, ox, oy, T, seed, sn, sw) {
+  const r = rng(seed + 77);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { let c = T.floor; const v = r(); if (v < 0.04) c = T.fspeck; if (sn && y < 2) c = T.shadow; if (sw && x < 1) c = T.shadow; b.px(ox + x, oy + y, c); }
+}
+function drawBedrock(b, ox, oy, seed) {
+  const r = rng(seed + 5);
+  const stone = (x0, y0, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let c = 2; if (y === 0 || x === 0) c = 3; else if (y === h - 1 || x === w - 1) c = 1; else if (r() < 0.07) c = 3; else if (r() < 0.05) c = 1; b.px(ox + x0 + x, oy + y0 + y, c); } };
+  b.rect(ox, oy, 16, 16, 0);
+  const o = Math.floor(r() * 3) + 2;
+  stone(0, 0, o + 3, 7); stone(o + 4, 0, 16 - o - 4, 7); stone(0, 8, 16 - o - 4, 7); stone(16 - o - 3, 8, o + 3, 7);
+  if (r() < 0.5) { const x = 3 + Math.floor(r() * 8); b.px(ox + x, oy + 3, 0); b.px(ox + x + 1, oy + 4, 0); }
+}
+function buildMap(state) {
+  const open = []; for (let x = 0; x < 30; x++) open.push(new Array(17).fill(false));
+  const cv = (x, a, c) => { for (let y = a; y <= c; y++) open[x][y] = true; }, ch = (y, a, c) => { for (let x = a; x <= c; x++) open[x][y] = true; };
+  ch(3, 2, 16); cv(4, 3, 13); cv(16, 3, 10); ch(10, 4, 24); cv(24, 6, 13); ch(6, 20, 27); cv(27, 3, 6); ch(13, 4, 14);
+  for (let x = 18; x <= 22; x++) for (let y = 12; y <= 14; y++) open[x][y] = true; cv(20, 10, 12); cv(10, 3, 7);
+  if (state === 2) { open[14][9] = true; open[14][8] = true; }
+  return open;
+}
+const isBed = (x, y) => x === 0 || y === 0 || x === 29 || y === 16;
+function terrain(b, T, open) {
+  const o = (x, y) => x >= 0 && y >= 0 && x < 30 && y < 17 && open[x][y];
+  const solid = (x, y) => !o(x, y);
+  for (let ty = 0; ty < 17; ty++) for (let tx = 0; tx < 30; tx++) {
+    const ox = tx * 16, oy = ty * 16, seed = tx * 131 + ty * 17;
+    if (isBed(tx, ty)) drawBedrock(b, ox, oy, seed);
+    else if (open[tx][ty]) drawFloor(b, ox, oy, T, seed, solid(tx, ty - 1), solid(tx - 1, ty));
+    else drawDirt(b, ox, oy, T, seed, { n: o(tx, ty - 1), e: o(tx + 1, ty), s: o(tx, ty + 1), w: o(tx - 1, ty), nw: o(tx - 1, ty - 1), ne: o(tx + 1, ty - 1), sw: o(tx - 1, ty + 1), se: o(tx + 1, ty + 1) });
+  }
+}
+
+/* ---------- UI helpers ---------- */
+function plate(b, x, y, w, h, o) {
+  o = o || {}; const f = o.fill != null ? o.fill : 1, hi = o.hi != null ? o.hi : 3, lo = o.lo != null ? o.lo : 0, ol = o.ol != null ? o.ol : 0;
+  const cs = [b.get(x, y), b.get(x + w - 1, y), b.get(x, y + h - 1), b.get(x + w - 1, y + h - 1)];
+  b.rect(x, y, w, h, ol); b.rect(x + 1, y + 1, w - 2, h - 2, f); b.hline(x + 1, y + 1, w - 2, hi); b.vline(x + 1, y + 1, h - 2, hi); b.hline(x + 1, y + h - 2, w - 2, lo); b.vline(x + w - 2, y + 1, h - 2, lo);
+  b.px(x, y, cs[0]); b.px(x + w - 1, y, cs[1]); b.px(x, y + h - 1, cs[2]); b.px(x + w - 1, y + h - 1, cs[3]);
+}
+const BTN = {
+  amber: { normal: { f: 23, hi: 24, lo: 22, t: 0 }, hover: { f: 24, hi: 25, lo: 23, t: 0 }, pressed: { f: 22, hi: 21, lo: 22, t: 0 }, disabled: { f: 2, hi: 2, lo: 1, t: 27 } },
+  teal: { normal: { f: 12, hi: 13, lo: 11, t: 0 }, hover: { f: 13, hi: 14, lo: 12, t: 0 }, pressed: { f: 11, hi: 10, lo: 11, t: 25 }, disabled: { f: 2, hi: 2, lo: 1, t: 27 } }
+};
+function btn(b, x, y, w, h, label, state, kind, o) {
+  o = o || {}; const c = BTN[kind || 'amber'][state || 'normal'];
+  const cs = [b.get(x, y), b.get(x + w - 1, y), b.get(x, y + h - 1), b.get(x + w - 1, y + h - 1)];
+  b.rect(x, y, w, h, 0); b.rect(x + 1, y + 1, w - 2, h - 2, c.f);
+  if (state !== 'pressed') { b.hline(x + 1, y + 1, w - 2, c.hi); b.vline(x + 1, y + 1, h - 2, c.hi); b.hline(x + 1, y + h - 2, w - 2, c.lo); b.vline(x + w - 2, y + 1, h - 2, c.lo); }
+  else { b.hline(x + 1, y + 1, w - 2, c.hi); b.vline(x + 1, y + 1, h - 2, c.hi); }
+  b.px(x, y, cs[0]); b.px(x + w - 1, y, cs[1]); b.px(x, y + h - 1, cs[2]); b.px(x + w - 1, y + h - 1, cs[3]);
+  if (state === 'hover') { b.px(x - 2, y + Math.floor(h / 2), 25); b.px(x - 3, y + Math.floor(h / 2) - 1, 25); b.px(x - 3, y + Math.floor(h / 2) + 1, 25); b.px(x - 3, y + Math.floor(h / 2), 25); }
+  const dy = state === 'pressed' ? 1 : 0; const ty = y + Math.floor((h - 7) / 2) + dy;
+  if (label != null) { slot(b, label, x + 4, ty, w - 8, c.t, { align: 'c', bold: o.bold }); }
+  return c;
+}
+function pips(b, x, y, n, max) { for (let i = 0; i < max; i++) { const px = x + i * 6; b.rect(px, y, 5, 5, 0); if (i < n) { b.rect(px + 1, y + 1, 3, 3, 24); b.px(px + 1, y + 1, 25); } else b.rect(px + 1, y + 1, 3, 3, 2); } }
+function fuelBar(b, x, y, f, flash) {
+  b.rect(x, y, 66, 8, 0); b.rect(x + 1, y + 1, 64, 6, 1); const n = Math.round(f * 16); const low = f <= .25;
+  for (let i = 0; i < n; i++) { const sx = x + 1 + i * 4; const [hi, md, lo] = low ? (flash ? [24, 23, 22] : [22, 21, 21]) : [19, 18, 17]; b.rect(sx, y + 1, 3, 1, hi); b.rect(sx, y + 2, 3, 3, md); b.rect(sx, y + 5, 3, 1, lo); }
+  for (let i = 1; i < 4; i++) b.vline(x + 1 + i * 16 - 1, y + 1, 6, 0);
+}
+function hud(b, T, st, flash) {
+  const hd = T.hud; b.rect(0, 0, 480, 16, hd.plate); b.hline(0, 0, 480, 0); b.hline(0, 1, 480, hd.top); b.hline(0, 14, 480, hd.low); b.hline(0, 15, 480, 0);
+  for (let i = 0; i < st.max; i++) b.spr(heart(i < st.hp), 5 + i * 11, 3);
+  b.spr(fuelCan(true), 70, 3); fuelBar(b, 84, 4, st.fuel, flash);
+  if (st.fuel <= .25) { slot(b, 'LOW!', 152, 4, 40, 22, { sh: 0 }); }
+  b.spr(emerald(true), 196, 3); slot(b, 'x' + st.gems, 210, 4, 36, hd.txt, { sh: 0 });
+  slot(b, 'FLOOR ' + st.floor, 258, 4, 80, hd.txt, { sh: 0 });
+  slot(b, st.biome, 340, 4, 134, hd.acc, { sh: 0, align: 'r' });
+}
+
+/* ---------- dive scene ---------- */
+function applyLantern(b, cx, cy) {
+  for (let y = 16; y < 272; y++) for (let x = 0; x < 480; x++) { const d = Math.hypot(x - cx, y - cy); const f = Math.min(1, Math.max(0, (d - 60) / 150)) * 3.6; const n = Math.floor(f + bay(x, y)); if (n > 0) b.px(x, y, darken(b.get(x, y), n)); }
+}
+function tilePos(tx, ty) { return [tx * 16, ty * 16]; }
+function diveScene(tk, state) {
+  const T = THEMES[tk]; const b = new Buf(W, H, 0); const open = buildMap(state);
+  terrain(b, T, open);
+  const P = state === 1 ? { x: 14 * 16, y: 10 * 16 - 6, dir: 'up' } : { x: 17 * 16, y: 10 * 16, dir: 'left' };
+  if (T.lantern) applyLantern(b, P.x + 8, P.y + 8);
+  const gems = [[6,5],[7,6],[8,7],[9,8],[12,5],[13,5],[12,6],[13,6],[19,4],[20,4],[19,5],[20,5],[26,10],[27,10],[26,11],[27,11],[6,11],[7,11],[8,12],[6,15],[7,15],[8,15]];
+  const bags = [[21, 8], [10, 15], [25, 4]]; if (state === 1) bags.push([14, 8]);
+  if (T.lantern) gems.forEach(([tx, ty]) => { for (let y = -11; y <= 11; y++) for (let x = -11; x <= 11; x++) { const d = Math.hypot(x, y); if (d > 7.5 && d < 11 && ((x + y) & 1) === 0 && (x * 3 + y * 5 & 3) === 0) { const px = tx * 16 + 8 + x, py = ty * 16 + 8 + y; if (py > 16 && py < 256 && b.get(px, py) <= 9 && b.get(px, py) >= 4) b.px(px, py, 11); } } });
+  gems.forEach(([tx, ty]) => b.spr(emerald(false), tx * 16, ty * 16));
+  bags.forEach(([tx, ty]) => b.spr(bag(false), tx * 16, ty * 16));
+  b.spr(nest(state === 1 ? 0 : 1), 20 * 16, 13 * 16); b.spr(fuelCan(false), 8 * 16, 3 * 16); b.spr(exitShaft(state === 1 ? 0 : 1), 27 * 16, 3 * 16);
+  const dirtDust = (x, y, n, sd) => { const r = rng(sd); for (let i = 0; i < n; i++) b.px(x + Math.floor(r() * 12) - 6, y + Math.floor(r() * 8) - 4, [7, 8, 9, 6][Math.floor(r() * 4)]); };
+  b.spr(drifter(state === 1 ? 0 : 1), 12 * 16, 12 * 16);
+  b.spr(burrower(state === 1 ? 0 : 1), 10 * 16, 7 * 16);
+  b.spr(spitter(0, -1), 22 * 16, 10 * 16);
+  if (state === 1) {
+    b.spr(grub(0, 1), 11 * 16, 10 * 16);
+    b.spr(spitBolt(), 19 * 16 + 4, 10 * 16 + 4); b.px(19 * 16 + 12, 10 * 16 + 7, 31); b.px(19 * 16 + 14, 10 * 16 + 7, 22); b.px(19 * 16 + 16, 10 * 16 + 7, 21);
+    b.rect(14 * 16 + 3, 9 * 16 + 7, 10, 9, T.floor); b.hline(14 * 16 + 3, 9 * 16 + 6, 10, T.dirt.rim); b.vline(14 * 16 + 2, 9 * 16 + 7, 9, T.dirt.rim); b.vline(14 * 16 + 13, 9 * 16 + 7, 9, T.dirt.rim);
+    dirtDust(14 * 16 + 8, 9 * 16 + 4, 9, 3);
+    b.spr(rig('up', 1), P.x, P.y);
+  } else {
+    b.spr(grubSquash(), 14 * 16, 10 * 16); b.spr(bag(true), 14 * 16, 9 * 16 + 3);
+    b.spr(rig('left', 0), P.x, P.y);
+    const nug = [[12 * 16 + 4, 10 * 16 + 9], [13 * 16 + 1, 10 * 16 + 11], [15 * 16 + 5, 10 * 16 + 10], [16 * 16 + 4, 10 * 16 + 6], [14 * 16 + 1, 8 * 16 + 9], [14 * 16 + 8, 8 * 16 + 2]];
+    nug.forEach(p => b.spr(nugget(), p[0], p[1]));
+    [[13 * 16 + 11, 10 * 16 + 4], [13 * 16 + 14, 10 * 16 + 1], [15 * 16 + 2, 10 * 16 + 5], [14 * 16 + 5, 8 * 16 + 13], [14 * 16 + 11, 8 * 16 + 9]].forEach(p => b.px(p[0], p[1], 24));
+    const cx = 14 * 16 + 8, cy = 10 * 16 + 4; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, ln = k % 2 ? 4 : 6; for (let r = 5; r < 5 + ln; r++) b.px(cx + Math.round(Math.cos(a) * r * 1.3), cy + Math.round(Math.sin(a) * r * .9), k % 2 ? 25 : 24); }
+    [[13 * 16 + 1, 9 * 16 - 2], [15 * 16 + 8, 9 * 16 - 5]].forEach(p => { b.px(p[0], p[1], 30); b.px(p[0] - 1, p[1], 25); b.px(p[0] + 1, p[1], 25); b.px(p[0], p[1] - 1, 25); b.px(p[0], p[1] + 1, 25); });
+    text(b, '+250', 14 * 16 + 20, 8 * 16 + 2, 24, { bold: true, sh: 0 });
+  }
+  // hum strip in bottom bedrock
+  for (let x = 4; x < 476; x++) { const yy = 264 + 7 + Math.round(Math.sin(x * 0.21) * 2.2 * Math.sin(x * 0.02 + 1)); b.px(x, yy, x % 3 === 0 ? 29 : 28); }
+  hud(b, T, { hp: 4, max: 5, fuel: .7, gems: 14, floor: 3, biome: 'TOPSOIL' });
+  return b;
+}
+
+/* ---------- base camp ---------- */
+const UPG = [
+  { n: 'HULL', ic: 'hull', lv: 3, mx: 5, c: 60, st: 'normal' },
+  { n: 'FUEL TANK', ic: 'fuel', lv: 2, mx: 5, c: 45, st: 'hover' },
+  { n: 'DRILL MOTOR', ic: 'drill', lv: 1, mx: 5, c: 120, st: 'pressed' },
+  { n: 'PULSE CORE', ic: 'pulse', lv: 0, mx: 3, c: 200, st: 'disabled' },
+  { n: 'PROSPECTOR', ic: 'prospector', lv: 4, mx: 5, c: 90, st: 'normal' },
+  { n: 'SALVAGE CONTRACT', ic: 'salvage', lv: 1, mx: 3, c: 75, st: 'normal' },
+  { n: 'EXTRA PICK', ic: 'pick', lv: 0, mx: 3, c: 300, st: 'disabled' },
+  { n: 'LANTERN MOUNT', ic: 'lantern', lv: 5, mx: 5, c: 0, st: 'max' }
+];
+function upgRow(b, x, y, w, u, i) {
+  b.rect(x, y, w, 26, i % 2 ? 1 : 2); b.hline(x, y + 25, w, 0);
+  b.rect(x + 3, y + 4, 18, 18, 0); b.rect(x + 4, y + 5, 16, 16, 1); b.spr(icon(u.ic), x + 4, y + 5);
+  slot(b, u.n, x + 26, y + 4, 124, 25, { sh: 0 });
+  slot(b, 'LV ' + u.lv + '/' + u.mx, x + 26, y + 15, 48, 27);
+  pips(b, x + 80, y + 17, u.lv, u.mx);
+  if (u.st !== 'max') { b.spr(emerald(true), x + 152, y + 7); slot(b, String(u.c), x + 165, y + 9, 28, u.st === 'disabled' ? 27 : 25); }
+  const bs = u.st === 'max' ? 'disabled' : u.st; const lab = u.st === 'max' ? 'MAX' : 'BUY';
+  btn(b, x + w - 66, y + 4, 62, 18, lab, bs, 'teal');
+}
+function crewScene(b, x0, y0, ww, hh) {
+  const sky = (a, c) => { b.rect(x0, y0 + a[0], ww, a[1] - a[0], c); };
+  sky([0, 26], 0); sky([26, 56], 1); sky([56, 84], 2); sky([84, 108], 3);
+  [26, 56, 84].forEach((yy, i) => { for (let x = 0; x < ww; x++) { if ((x & 1) === 0) b.px(x0 + x, y0 + yy, [1, 2, 3][i]); else b.px(x0 + x, y0 + yy - 1, [0, 1, 2][i]); } });
+  const r = rng(9); for (let i = 0; i < 26; i++) { const x = Math.floor(r() * ww), y = Math.floor(r() * 62); b.px(x0 + x, y0 + y, i % 5 === 0 ? 30 : (i % 3 === 0 ? 19 : 26)); }
+  for (let yy = -8; yy <= 8; yy++) for (let xx = -8; xx <= 8; xx++) { if (xx * xx + yy * yy <= 64 && (xx - 4) * (xx - 4) + (yy + 2) * (yy + 2) > 52) b.px(x0 + 146 + xx, y0 + 18 + yy, 25); } b.px(x0 + 140, y0 + 20, 26); b.px(x0 + 141, y0 + 22, 26);
+  for (let x = 0; x < ww; x++) { const hy = 92 + Math.round(Math.sin(x * 0.045 + 1) * 8 + Math.sin(x * 0.11) * 3); b.rect(x0 + x, y0 + hy, 1, 112 - hy, 10); }
+  b.rect(x0, y0 + 108, ww, hh - 108, 5); b.rect(x0, y0 + 108, ww, 2, 11); b.rect(x0, y0 + 110, ww, 1, 4);
+  for (let x = 0; x < ww; x += 7) { b.px(x0 + x, y0 + 107, 12); b.px(x0 + x + 1, y0 + 106, 12); }
+  const rr = rng(4); for (let i = 0; i < 60; i++) b.px(x0 + Math.floor(rr() * ww), y0 + 113 + Math.floor(rr() * (hh - 113)), rr() < .5 ? 6 : 4);
+  // tent
+  b.rect(x0 + 8, y0 + 82, 1, 1, 0);
+  for (let y = 0; y < 30; y++) { const half = Math.floor(y * 0.9) + 1; for (let x = -half; x <= half; x++) { const px = x0 + 30 + x, py = y0 + 80 + y; const edge = Math.abs(x) === half; b.px(px, py, edge ? 0 : (x < -2 ? 23 : (x > 2 ? 21 : 22))); } }
+  b.rect(x0 + 27, y0 + 100, 7, 10, 0); b.rect(x0 + 28, y0 + 102, 5, 8, 1); b.px(x0 + 30, y0 + 78, 25); b.vline(x0 + 30, y0 + 74, 5, 8);
+  // fire
+  const fx = x0 + 92, fy = y0 + 110; for (let d = 18; d > 0; d -= 2) for (let a = 0; a < 360; a += 6) { const px = Math.round(fx + Math.cos(a * Math.PI / 180) * d * 1.6), py = Math.round(fy + 2 + Math.sin(a * Math.PI / 180) * d * .45); if (((px + py) & 1) === 0 && d > 10) b.px(px, py, 6); else if (d <= 10 && ((px + py) & 1) === 0) b.px(px, py, 7); }
+  b.rect(fx - 8, fy - 2, 16, 3, 5); b.rect(fx - 8, fy - 2, 16, 1, 7); b.rect(fx - 7, fy, 14, 1, 4);
+  const flame = [[0, -3, 24], [-1, -5, 24], [1, -5, 23], [0, -7, 23], [-1, -8, 22], [0, -9, 24]]; for (let y = 0; y < 11; y++) { const hw = Math.max(0, 5 - Math.abs(y - 3) * 0.7 - (y > 6 ? (y - 6) : 0)); for (let x = -Math.floor(hw); x <= Math.floor(hw); x++) b.px(fx + x, fy - 3 - y, y < 4 ? 24 : (y < 8 ? 23 : 22)); } b.px(fx, fy - 4, 25); b.px(fx - 1, fy - 5, 25); b.px(fx + 5, fy - 12, 24); b.px(fx - 6, fy - 10, 23); b.px(fx + 2, fy - 15, 22);
+  // crate + radio
+  b.rect(x0 + 146, y0 + 100, 22, 12, 6); b.rect(x0 + 146, y0 + 100, 22, 1, 8); b.hline(x0 + 146, y0 + 111, 22, 4); b.vline(x0 + 146, y0 + 100, 12, 7); b.vline(x0 + 167, y0 + 100, 12, 0); b.hline(x0 + 146, y0 + 99, 22, 0); b.rect(x0 + 147, y0 + 105, 20, 1, 5); b.vline(x0 + 156, y0 + 101, 10, 5);
+  b.spr(radio(1), x0 + 149, y0 + 84);
+  b.spr(tessa(), x0 + 58, y0 + 86); b.spr(orin(), x0 + 120, y0 + 86);
+  b.hline(x0 + 58, y0 + 110, 16, 4); b.hline(x0 + 120, y0 + 110, 16, 4);
+}
+function baseScreen(tk) {
+  const b = new Buf(W, H, 0); const T = THEMES[tk || 'A'];
+  b.rect(0, 0, W, H, 1); for (let y = 0; y < H; y += 8) for (let x = ((y >> 3) & 1) * 8; x < W; x += 16) b.px(x, y, 2);
+  b.rect(0, 0, W, 16, 1); b.hline(0, 15, W, 0); b.hline(0, 14, W, 2); b.hline(0, 0, W, 3);
+  slot(b, 'BASE CAMP', 8, 4, 110, 24, { bold: true, sh: 0 });
+  slot(b, 'BEST FLOOR 7', 150, 4, 100, 27, {});
+  b.spr(emerald(true), 396, 3); slot(b, '128', 410, 4, 36, 25, { sh: 0 }); slot(b, 'EMERALDS', 300, 4, 90, 27, { align: 'r' });
+  // bench panel (wood frame)
+  plate(b, 4, 20, 290, 236, { fill: 5, hi: 7, lo: 4, ol: 0 }); b.rect(8, 24, 282, 16, 6); b.hline(8, 24, 282, 8); b.hline(8, 39, 282, 4);
+  [[10, 26], [284, 26], [10, 35], [284, 35]].forEach(p => { b.rect(p[0], p[1], 2, 2, 9); b.px(p[0] + 1, p[1] + 1, 4); });
+  slot(b, 'UPGRADE BENCH', 20, 28, 150, 25, { bold: true, sh: 0 }); slot(b, 'PERMANENT', 190, 28, 90, 9, { sh: 4, align: 'r' });
+  b.rect(8, 42, 282, 26 * 8 + 2, 0);
+  UPG.forEach((u, i) => upgRow(b, 9, 43 + i * 26, 280, u, i));
+  // right: camp window
+  plate(b, 298, 20, 178, 150, { fill: 0, hi: 3, lo: 0, ol: 0 }); crewScene(b, 299, 21, 176, 148);
+  plate(b, 298, 174, 178, 44, { fill: 1, hi: 3, lo: 0 });
+  b.spr(portrait('tessa'), 304, 184);
+  slot(b, 'TESSA', 334, 180, 60, 24, { sh: 0 });
+  slotWrap(b, "RIG'S PATCHED. DON'T SCRATCH IT THIS TIME.", 334, 190, 136, 3, 25, { sh: 0 });
+  btn(b, 298, 224, 178, 30, 'DIVE', 'normal', 'amber', { bold: true });
+  b.spr(rig('down', 0), 316, 231); b.spr(rig('down', 1), 446, 231);
+  slot(b, 'FLOOR 1 - TOPSOIL', 298, 258, 178, 27, { align: 'c' });
+  return b;
+}
+
+/* ---------- run-pick ---------- */
+const CARDS = [
+  { n: 'MAGNET COIL', ic: 'magnet', tier: 2, tag: 'RARE', e: 'Emeralds within 3 tiles drift toward your rig.' },
+  { n: 'SPARE FUEL', ic: 'fuel', tier: 1, tag: 'COMMON', e: 'Refill 30% fuel now. Canisters give 10% more.' },
+  { n: 'ECHO PING', ic: 'ping', tier: 3, tag: 'RELIC', e: 'Press PING to reveal monsters through dirt for 4 seconds.' }
+];
+function card(b, x, y, c, sel, key) {
+  const w = 144, h = 176; const acc = sel ? 24 : 3;
+  plate(b, x, y, w, h, { fill: 1, hi: sel ? 24 : 3, lo: 0, ol: sel ? 24 : 0 }); if (sel) { b.rect(x + 1, y + 1, w - 2, 1, 25); [[x + 2, y + 2], [x + w - 4, y + 2], [x + 2, y + h - 4], [x + w - 4, y + h - 4]].forEach(p => b.rect(p[0], p[1], 2, 2, 25)); }
+  b.rect(x + 6, y + 6, w - 12, 12, 2); slot(b, c.tag, x + 10, y + 8, 60, sel ? 24 : 26, {});
+  for (let i = 0; i < 3; i++) { const dx = x + w - 12 - i * 9, dy = y + 8; const fill = i < c.tier; for (let j = -3; j <= 3; j++) { const ww = 3 - Math.abs(j); for (let k = -ww; k <= ww; k++) { const edge = Math.abs(k) === ww; b.px(dx + k, dy + 3 + j, edge ? 0 : (fill ? 24 : 1)); } } }
+  const px = x + Math.floor((w - 40) / 2), py = y + 24; b.rect(px, py, 40, 40, 0); b.rect(px + 1, py + 1, 38, 38, 2); b.rect(px + 2, py + 2, 36, 36, 1);
+  for (let k = 0; k < 40; k += 2) { b.px(px + 4 + k % 32, py + 4 + (k * 7) % 30, 3); }
+  for (let yy = 8; yy < 32; yy++) for (let xx = 8; xx < 32; xx++) { const d = Math.hypot(xx - 20, yy - 20); if (d > 11 && d < 14 && ((xx + yy) & 1) === 0) b.px(px + xx, py + yy, sel ? 23 : 3); }
+  b.spr(icon(c.ic), px + 12, py + 12);
+  slot(b, c.n, x + 8, y + 70, w - 16, 25, { sh: 0, align: 'c', bold: false });
+  b.hline(x + 10, y + 82, w - 20, 3);
+  slotWrap(b, c.e, x + 10, y + 88, w - 22, 6, 26, {});
+  btn(b, x + 22, y + h - 26, w - 44, 18, '[' + key + '] PICK', sel ? 'hover' : 'normal', sel ? 'amber' : 'teal');
+}
+function runpick() {
+  const b = diveScene('A', 1);
+  for (let y = 16; y < H; y++) for (let x = 0; x < W; x++) { const c = b.get(x, y); b.px(x, y, darken(c, ((x + y) & 1) ? 5 : 4)); }
+  slot(b, 'CHOOSE ONE UPGRADE', 0, 22, 480, 24, { bold: true, sh: 0, align: 'c' });
+  slot(b, 'FLOOR 3 REWARD - THIS RUN ONLY', 0, 34, 480, 26, { sh: 0, align: 'c' });
+  const xs = [12, 168, 324]; CARDS.forEach((c, i) => card(b, xs[i], i === 1 ? 54 : 58, c, i === 1, i + 1));
+  slot(b, 'LEFT/RIGHT TO SELECT   ENTER TO PICK', 0, 244, 480, 27, { sh: 0, align: 'c' });
+  hud(b, THEMES.A, { hp: 4, max: 5, fuel: .7, gems: 14, floor: 3, biome: 'TOPSOIL' });
+  return b;
+}
+
+/* ---------- dialogue box ---------- */
+const WHO = { tessa: { n: 'TESSA', tab: 23, tabHi: 24, txt: 25 }, orin: { n: 'ORIN', tab: 12, tabHi: 13, txt: 25 }, static: { n: 'STATIC', tab: 28, tabHi: 29, txt: 29 } };
+function dialogue(b, x, y, w, h, who, line, blink) {
+  const c = WHO[who];
+  plate(b, x, y, w, h, { fill: 1, hi: 3, lo: 0 });
+  if (who === 'static') { const r = rng(3); for (let i = 0; i < w - 4; i += 1) if (r() < .18) { b.px(x + 2 + i, y + 1, 28); } for (let i = 0; i < w - 4; i += 1) if (r() < .18) { b.px(x + 2 + i, y + h - 2, 28); } }
+  b.rect(x + 6, y + 6, 28, 28, c.tab); b.rect(x + 7, y + 7, 26, 26, 0); b.rect(x + 8, y + 8, 24, 24, 2); b.spr(portrait(who), x + 8, y + 8);
+  b.rect(x + 40, y - 6, 66, 12, c.tab); b.hline(x + 40, y - 6, 66, c.tabHi); b.hline(x + 40, y + 5, 66, 0); b.px(x + 40, y - 6, b.get(x + 39, y - 6)); b.px(x + 105, y - 6, b.get(x + 106, y - 6));
+  slot(b, c.n, x + 44, y - 4, 58, 0, {});
+  slotWrap(b, line, x + 40, y + 12, w - 40 - 22, 3, c.txt, { sh: 0 });
+  const t = blink ? 0 : 1; b.rect(x + w - 16, y + h - 12 + t, 7, 1, 24); b.rect(x + w - 15, y + h - 11 + t, 5, 1, 24); b.rect(x + w - 14, y + h - 10 + t, 3, 1, 24); b.px(x + w - 13, y + h - 9 + t, 24);
+}
+function summary() {
+  const b = new Buf(W, H, 0); b.rect(0, 0, W, H, 1); for (let y = 0; y < H; y += 8) for (let x = ((y >> 3) & 1) * 8; x < W; x += 16) b.px(x, y, 2);
+  b.rect(0, 0, W, 16, 1); b.hline(0, 15, W, 0); b.hline(0, 14, W, 2); b.hline(0, 0, W, 3);
+  slot(b, 'RUN COMPLETE', 8, 4, 120, 24, { bold: true, sh: 0 }); slot(b, 'RIG LOST POWER ON FLOOR 7', 180, 4, 200, 26, { align: 'r' });
+  plate(b, 8, 22, 300, 134, { fill: 5, hi: 7, lo: 4 }); b.rect(12, 26, 292, 126, 1);
+  const rows = [['FLOORS REACHED', '7'], ['EMERALDS BANKED', '+86'], ['KILLS', '23']];
+  rows.forEach((r, i) => { const yy = 32 + i * 18; slot(b, r[0], 20, yy + 3, 150, 25, { sh: 0 }); for (let x = 176; x < 252; x += 4) b.px(x, yy + 9, 3); slot(b, r[1], 258, yy + 3, 40, 24, { bold: true, sh: 0, align: 'r' }); });
+  b.spr(emerald(true), 240, 53);
+  [['grub', 9], ['burrower', 6], ['spitter', 5], ['drifter', 3]].forEach((k, i) => { const sp = k[0] === 'grub' ? grub(0, 1) : k[0] === 'burrower' ? burrower(0) : k[0] === 'spitter' ? spitter(0, 1) : drifter(0); const x = 28 + i * 52; b.spr(sp, x, 88); slot(b, 'x' + k[1], x + 17, 96, 30, 25, { sh: 0 }); });
+  b.hline(18, 112, 284, 3);
+  slot(b, 'SEED', 20, 122, 40, 27, {}); slot(b, 'A7F3-92C1', 62, 122, 80, 25, { sh: 0 }); btn(b, 240, 117, 60, 18, 'COPY', 'normal', 'teal');
+  slot(b, 'SALVAGE BONUS +12', 20, 138, 150, 26, {});
+  plate(b, 316, 22, 156, 134, { fill: 2, hi: 3, lo: 0 });
+  slot(b, 'NEW BEST!', 316, 28, 156, 24, { bold: true, sh: 0, align: 'c' });
+  b.spr(rig('right', 0), 324, 56); b.spr(rig('right', 1), 372, 66);
+  b.spr(emerald(false), 420, 52); b.spr(bag(false), 440, 60); b.spr(nugget(), 428, 80);
+  for (let i = 0; i < 12; i++) b.px(330 + ((i * 37) % 130), 60 + ((i * 53) % 50), i % 3 ? 3 : 27);
+  slot(b, 'DEEPEST FLOOR YET', 322, 112, 144, 25, { align: 'c' }); slot(b, 'NEW: ECHO PING', 322, 124, 144, 29, { align: 'c' });
+  slot(b, '+3 TO NEXT UPGRADE', 322, 136, 144, 26, { align: 'c' });
+  btn(b, 8, 166, 150, 22, 'BACK TO CAMP', 'hover', 'amber'); btn(b, 170, 166, 130, 22, 'DIVE AGAIN', 'normal', 'teal');
+  dialogue(b, 8, 206, 464, 58, 'static', '...FLOOR 7. THE HUM GOT LOUDER. IT KNEW YOUR NAME. KEEP DIGGING, LITTLE LIGHT.', false);
+  return b;
+}
+
+/* ---------- sheets ---------- */
+function sheet(items, cols, cell, bg) {
+  cell = cell || 20; const rows = Math.ceil(items.length / cols); const b = new Buf(cols * cell, rows * cell, bg == null ? 1 : bg);
+  items.forEach((s, i) => { const x = (i % cols) * cell, y = Math.floor(i / cols) * cell; b.rect(x, y, cell, 1, 2); b.rect(x, y, 1, cell, 2); b.spr(s, x + Math.floor((cell - s.w) / 2), y + Math.floor((cell - s.h) / 2)); });
+  return b;
+}
+const sheets = {
+  player: () => sheet([rig('up', 0), rig('up', 1), rig('right', 0), rig('right', 1), rig('down', 0), rig('down', 1), rig('left', 0), rig('left', 1)], 8),
+  monsters: () => sheet([grub(0, 1), grub(1, 1), burrower(0), burrower(1), spitter(0, 1), spitter(1, 1), drifter(0), drifter(1), grubSquash(), spitBolt()], 10),
+  objects: () => sheet([bag(false), bag(true), nugget(), emerald(false), fuelCan(false), nest(0), nest(1), exitShaft(0), exitShaft(1)], 9),
+  crew: () => sheet([tessa(), orin(), radio(0), radio(1)], 4, 28),
+  icons: () => sheet(['hull', 'fuel', 'drill', 'pulse', 'prospector', 'salvage', 'pick', 'lantern', 'magnet', 'ping'].map(icon), 10),
+  portraits: () => sheet([portrait('tessa'), portrait('orin'), portrait('static')], 3, 28),
+  tiles: (tk) => {
+    const T = THEMES[tk || 'A']; const cell = 18; const b = new Buf(cell * 12, cell * 4, 1);
+    const put = (i, j, f) => { const tmp = new Buf(16, 16); f(tmp); b.rect(i * cell, j * cell, cell, cell, 1); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) b.px(i * cell + 1 + x, j * cell + 1 + y, tmp.get(x, y)); };
+    for (let i = 0; i < 4; i++) put(i, 0, t => drawDirt(t, 0, 0, T, 40 + i * 9));
+    put(4, 0, t => drawFloor(t, 0, 0, T, 5, false, false)); put(5, 0, t => drawFloor(t, 0, 0, T, 6, true, true));
+    for (let i = 0; i < 3; i++) put(6 + i, 0, t => drawBedrock(t, 0, 0, 60 + i * 7));
+    const E = [{ n: 1 }, { e: 1 }, { s: 1 }, { w: 1 }, { n: 1, w: 1 }, { n: 1, e: 1 }, { s: 1, e: 1 }, { s: 1, w: 1 }, { nw: 1 }, { ne: 1 }, { se: 1 }, { sw: 1 }];
+    E.forEach((m, i) => put(i, 1, t => drawDirt(t, 0, 0, T, 77 + i, Object.assign({}, NOM, m))));
+    const E2 = [{ n: 1, s: 1 }, { e: 1, w: 1 }, { n: 1, e: 1, w: 1 }, { e: 1, s: 1, w: 1 }, { n: 1, e: 1, s: 1 }, { n: 1, s: 1, w: 1 }, { n: 1, e: 1, s: 1, w: 1 }];
+    E2.forEach((m, i) => put(i, 2, t => drawDirt(t, 0, 0, T, 120 + i, Object.assign({}, NOM, m))));
+    return b;
+  },
+  patch: (tk) => { const T = THEMES[tk || 'A']; const b = new Buf(480, 272, 0); terrain(b, T, buildMap(1)); return b.crop(16 * 2, 16 * 2, 16 * 15, 16 * 6); }
+};
+
+/* ---------- style guide buffers ---------- */
+function styleFont() {
+  const b = new Buf(480, 132, 1);
+  text(b, 'COALFACE 5X7 - ORIGINAL PIXEL FONT', 8, 6, 24, { bold: true, sh: 0 });
+  text(b, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8, 22, 25, { sh: 0 }); text(b, '0123456789 .,:-+/!?\'%()#><*=[]', 8, 33, 25, { sh: 0 });
+  text(b, '5X7 GLYPH, 6PX ADVANCE, 9PX LINE PITCH. CAPS ONLY.', 8, 48, 26, {});
+  text(b, 'BODY 25  HEADING 24 BOLD  SOFT 26  MUTED 27  WARN 22  GOOD 13', 8, 59, 27, {});
+  text(b, 'THE DRILL HUMS AND THE DEEP ANSWERS.', 8, 74, 25, { sh: 0 });
+  text(b, 'THE DRILL HUMS AND THE DEEP ANSWERS.', 8, 86, 24, { sh: 0, bold: true });
+  text(b, 'FLOOR 3  14 EMERALDS  HP 4/5  +250', 8, 100, 13, { sh: 0 });
+  text(b, '30% LONGER TEXT STILL FITS ->', 8, 114, 29, {}); text(b, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0', 150 + 8, 114, 29, {});
+  return b;
+}
+function styleHud() {
+  const b = new Buf(480, 120, 2); const T = THEMES.A;
+  hud(b, T, { hp: 4, max: 5, fuel: .7, gems: 14, floor: 3, biome: 'TOPSOIL' });
+    // low fuel (two flash frames) on a second strip
+  const s2 = new Buf(480, 16, 0); hud(s2, T, { hp: 2, max: 5, fuel: .2, gems: 31, floor: 12, biome: 'CRYSTAL WARRENS' }, true); for (let y = 0; y < 16; y++) for (let x = 0; x < 480; x++) b.px(x, 20 + y, s2.get(x, y));
+  const s3 = new Buf(480, 16, 0); hud(s3, T, { hp: 2, max: 5, fuel: .2, gems: 31, floor: 12, biome: 'CRYSTAL WARRENS' }, false); for (let y = 0; y < 16; y++) for (let x = 0; x < 480; x++) b.px(x, 40 + y, s3.get(x, y));
+  text(b, 'HEART FULL/EMPTY', 8, 64, 26, {}); b.spr(heart(true), 112, 62); b.spr(heart(false), 126, 62);
+  text(b, 'FUEL', 150, 64, 26, {}); [1, .6, .25].forEach((f, i) => fuelBar(b, 180 + i * 72, 62, f, false));
+  text(b, 'PIPS', 8, 80, 26, {}); pips(b, 44, 80, 3, 5); text(b, 'TIERS', 90, 80, 26, {});
+  for (let t = 0; t < 3; t++) for (let i = 0; i < 3; i++) { const dx = 130 + t * 40 + i * 9, dy = 82; const fill = i <= t; for (let j = -3; j <= 3; j++) { const ww = 3 - Math.abs(j); for (let k = -ww; k <= ww; k++) { const edge = Math.abs(k) === ww; b.px(dx + k, dy + 3 + j, edge ? 0 : (fill ? 24 : 1)); } } }
+  text(b, 'PLATES', 8, 98, 26, {}); plate(b, 56, 94, 60, 20, { fill: 1 }); plate(b, 122, 94, 60, 20, { fill: 5, hi: 7, lo: 4 }); plate(b, 188, 94, 60, 20, { fill: 2 }); plate(b, 254, 94, 60, 20, { fill: 1, hi: 24, ol: 24 });
+  text(b, 'PLAIN', 66, 101, 25, {}); text(b, 'WOOD', 136, 101, 25, {}); text(b, 'ROW', 204, 101, 25, {}); text(b, 'SELECT', 264, 101, 24, {});
+  return b;
+}
+function styleButtons() {
+  const b = new Buf(480, 110, 1);
+  ['normal', 'hover', 'pressed', 'disabled'].forEach((s, i) => { const x = 12 + i * 116; btn(b, x + 8, 8, 84, 20, 'MINE', s, 'amber'); btn(b, x + 8, 36, 84, 20, 'BUY', s, 'teal'); text(b, s.toUpperCase(), x + 8, 62, 26, {}); });
+  ['normal', 'hover', 'pressed', 'disabled'].forEach((s, i) => { btn(b, 12 + i * 116 + 8, 76, 84, 28, 'DIVE', s, 'amber', { bold: true }); });
+  return b;
+}
+function styleSil() {
+  const b = new Buf(480, 56, 25);
+  const items = [rig('right', 0), grub(0, 1), burrower(0), spitter(0, 1), drifter(0), bag(false), emerald(false), fuelCan(false), nest(0)];
+  items.forEach((s, i) => { for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) { const v = s.p[y * s.w + x]; if (v >= 0) b.px(6 + i * 24 + x, 6 + y, 0); } });
+  items.forEach((s, i) => { b.spr(s, 6 + i * 24, 32); });
+  return b;
+}
+
+G.DC = { PAL, W, H, Buf, THEMES, scenes: { diveA: () => diveScene('A', 1), diveB: () => diveScene('B', 1), diveA2: () => diveScene('A', 2), base: () => baseScreen('A'), runpick, summary }, sheets, style: { font: styleFont, hud: styleHud, buttons: styleButtons, sil: styleSil }, SLOTS, setReserve: v => { RESERVE = v; }, clearSlots: () => { SLOTS.length = 0; }, dialogueSheet: () => { const b = new Buf(480, 200, 1); dialogue(b, 8, 12, 464, 52, 'tessa', "THAT DRILL IS HELD TOGETHER BY SPITE AND TAPE. BRING IT BACK IN ONE PIECE.", false); dialogue(b, 8, 78, 464, 52, 'orin', "UM. THE MAP JUST... CHANGED. I DIDN'T DO THAT. PROBABLY.", true); dialogue(b, 8, 144, 464, 52, 'static', '...HUM... DEEPER... DEEPER... CAN YOU HEAR IT YET...', false); return b; } };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function(){
+const DC=window.DC;const root=document.documentElement;
+const th=document.getElementById('theme');const saved=(function(){try{return localStorage.getItem('dc-theme')}catch(e){return null}})();
+root.dataset.theme=saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+th.onclick=()=>{root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem('dc-theme',root.dataset.theme)}catch(e){}};
+const RGB=DC.PAL.map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)));
+function draw(cv,b){cv.width=b.w;cv.height=b.h;const c=cv.getContext('2d');const im=c.createImageData(b.w,b.h);for(let i=0;i<b.d.length;i++){const p=RGB[b.d[i]];im.data[i*4]=p[0];im.data[i*4+1]=p[1];im.data[i*4+2]=p[2];im.data[i*4+3]=255;}c.putImageData(im,0,0);}
+const J={diveA:()=>DC.scenes.diveA(),diveB:()=>DC.scenes.diveB(),diveA2:()=>DC.scenes.diveA2(),base:()=>DC.scenes.base(),runpick:()=>DC.scenes.runpick(),summary:()=>DC.scenes.summary(),
+sh_tiles:()=>DC.sheets.tiles('A'),sh_patch:()=>DC.sheets.patch('A'),sh_icons:DC.sheets.icons,st_font:DC.style.font,st_hud:DC.style.hud,st_buttons:DC.style.buttons,st_sil:DC.style.sil,dialogue:DC.dialogueSheet};
+const SCREEN=['diveA','diveB','diveA2','base','runpick','summary'];
+function sheetBlock(host,title,key,zs,note){const d=document.createElement('div');d.className='card';d.innerHTML='<h3>'+title+'</h3><div class="mut">actual size</div>';const a=document.createElement('canvas');a.dataset.s=key;a.dataset.z='1';a.style.width='auto';const m=document.createElement('div');m.className='mut';m.textContent='4x zoom';const z=document.createElement('canvas');z.dataset.s=key;z.dataset.z='4';d.append(a,m,z);if(note){const p=document.createElement('p');p.className='mut';p.textContent=note;d.append(p)}host.append(d);}
+const sh=document.getElementById('sheets');
+J.sh_player=DC.sheets.player;J.sh_monsters=DC.sheets.monsters;J.sh_objects=DC.sheets.objects;J.sh_crew=DC.sheets.crew;J.sh_portraits=DC.sheets.portraits;
+sheetBlock(sh,'Player rig "Chomper" - 4 directions x 2 dig frames (jaws open / snap)','sh_player',0,'Order: up, right, down, left; each with frame A (jaws wide open, eyes forward) and frame B (jaws snap shut, eyes bounce up, body dips, wheel hubs turn). Front view: googly eyes, toothy grille mouth, treaded sides. Side view: stalk-less googly eyes, wheels, pincer jaw. Back view: pincer claws and eyes peeking over the cab. An original design: a machine with a face, not a copy of any existing rig.');
+sheetBlock(sh,'Monsters - each with 2 frames (+ squashed Grub, spit bolt)','sh_monsters',0,'Order: Grub, Burrower, Spitter, Drifter (A/B), squashed Grub, Spitter bolt.');
+sheetBlock(sh,'Objects','sh_objects',0,'Gold bag, landed bag, nugget, emerald, fuel canister, nest (2 frames), exit shaft (2 frames, ladder rungs shift).');
+sheetBlock(document.getElementById('crew'),'Crew sprites (camp, 16x24 / 16x16)','sh_crew',0,'Tessa, Orin, Static radio (2 frames: hum waves pulse).');
+sheetBlock(document.getElementById('portr'),'Dialogue portraits (24x24)','sh_portraits',0,'Tessa, Orin, Static.');
+const cache={};
+function render(){
+  DC.setReserve(document.getElementById('res').checked);DC.clearSlots();
+  const z=+document.getElementById('zoom').value;
+  document.querySelectorAll('canvas[data-s]').forEach(cv=>{const k=cv.dataset.s;const b=(J[k])();draw(cv,b);cache[k]=b;
+    const zz=cv.dataset.z?+cv.dataset.z:(SCREEN.includes(k)||k==='dialogue'?z:1);cv.style.width=(b.w*zz)+'px';});
+  document.querySelectorAll('[data-dl]').forEach(d=>{const k=d.dataset.dl;const cv=document.querySelector('canvas[data-s='+k+']');d.innerHTML='<a download="deepcore_'+k+'_480x272.png" href="'+cv.toDataURL()+'">download native 480x272 PNG</a>';});
+  // palette check
+  let ok=true,used=new Set();for(const k in cache){for(const v of cache[k].d){if(v>31)ok=false;used.add(v)}}
+  const bad=DC.SLOTS.filter(s=>!s.ok).length;
+  document.getElementById('chk').textContent='palette: '+(ok?'PASS':'FAIL')+' ('+used.size+'/32 colours used) | text slots: '+DC.SLOTS.length+', over 30% budget: '+bad;
+  // verify actual canvas pixels belong to palette
+  const allowed=new Set(RGB.map(r=>r.join(',')));let canvasOk=true;
+  document.querySelectorAll('canvas[data-s]').forEach(cv=>{const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;for(let i=0;i<d.length;i+=4){if(!allowed.has(d[i]+','+d[i+1]+','+d[i+2])){canvasOk=false;break;}}});
+  document.getElementById('chk').textContent+=' | canvas readback: '+(canvasOk?'PASS':'FAIL');
+}
+document.getElementById('zoom').onchange=render;document.getElementById('res').onchange=render;
+const sw=document.getElementById('sw');DC.PAL.forEach((h,i)=>{const d=document.createElement('div');d.style.background=h;d.textContent=i;sw.append(d)});
+render();
+})();
+</script></body></html>
