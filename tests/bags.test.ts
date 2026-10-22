@@ -7,7 +7,7 @@ import { setTile, TileType } from '../src/core/grid';
 import tuning from '../src/data/tuning.json';
 
 function makeBag(id: number, x: number, y: number): BagEntity {
-  return { kind: 'bag', id, x, y, falling: false, fallProgress: 0, fallDistance: 0 };
+  return { kind: 'bag', id, x, y, falling: false, fallProgress: 0, fallDistance: 0, pendingFallTimer: 0 };
 }
 
 function makeGrub(id: number, x: number, y: number): GrubEntity {

@@ -6,6 +6,8 @@ import tuning from '../data/tuning.json';
 
 const T = tuning.floor.tileSize;
 
+export const HUD_HEIGHT = 28;
+
 const COLORS = {
   bedrock: 0x1a1a2e,
   dirt: 0x7a3b10,
@@ -195,22 +197,32 @@ export function renderHud(
   hudGfx.clear();
 
   const p = state.player;
-  const barW = 60;
-  const barH = 6;
   const bx = 4;
 
+  // Background strip
+  hudGfx.fillStyle(0x0d0b14);
+  hudGfx.fillRect(0, 0, 480, HUD_HEIGHT);
+
+  // HP hearts — row 1, y=4
   for (let i = 0; i < p.maxHp; i++) {
     hudGfx.fillStyle(i < p.hp ? COLORS.hpFull : COLORS.hpEmpty);
-    hudGfx.fillRect(bx + i * 10, 4, 8, 8);
+    hudGfx.fillRect(bx + i * 12, 4, 10, 10);
   }
 
+  // Fuel bar — row 2, y=18
+  const barW = 72;
+  const barH = 5;
   hudGfx.fillStyle(COLORS.fuelEmpty);
-  hudGfx.fillRect(bx, 16, barW, barH);
+  hudGfx.fillRect(bx, 18, barW, barH);
   const fuelRatio = Math.max(0, p.fuel / p.maxFuel);
   hudGfx.fillStyle(COLORS.fuelFull);
-  hudGfx.fillRect(bx, 16, Math.floor(barW * fuelRatio), barH);
+  hudGfx.fillRect(bx, 18, Math.floor(barW * fuelRatio), barH);
 
-  hudText.setText(`E:${p.emeralds}  FL:${state.floor}  K:${state.kills}`);
+  // Divider line
+  hudGfx.fillStyle(0x2c2347);
+  hudGfx.fillRect(0, HUD_HEIGHT - 1, 480, 1);
+
+  hudText.setText(`E:${p.emeralds}   FL:${state.floor}   K:${state.kills}`);
 }
 
 function lerp(a: number, b: number, t: number): number {

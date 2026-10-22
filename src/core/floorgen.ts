@@ -99,6 +99,7 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const bag: BagEntity = {
       kind: 'bag', id: nextId++, x: pos.x, y: pos.y,
       falling: false, fallProgress: 0, fallDistance: 0,
+      pendingFallTimer: tuning.bag.fallDelay,
     };
     entities.push(bag);
   }

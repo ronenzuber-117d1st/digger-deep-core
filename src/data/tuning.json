@@ -19,6 +19,7 @@
   },
   "bag": {
     "fallSpeed": 8,
+    "fallDelay": 0.5,
     "breakMinFall": 2,
     "nuggetsOnBreak": 5,
     "nuggetValue": 3,

@@ -11,7 +11,7 @@ import { SummaryScene } from './scenes/summary';
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 480,
-  height: 272,
+  height: 300,
   backgroundColor: '#1a0a2e',
   pixelArt: true,
   scale: {

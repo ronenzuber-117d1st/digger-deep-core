@@ -93,6 +93,7 @@ export interface BagEntity {
   falling: boolean;
   fallProgress: number;
   fallDistance: number;
+  pendingFallTimer: number;
 }
 
 export interface NuggetEntity {
