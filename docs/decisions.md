@@ -18,6 +18,14 @@
 - **Bag wobble during `pendingFallTimer > 0`**: renderer reads `bag.pendingFallTimer` (read-only) and alternates x offset ±1 px every 4 frames at 60 Hz.
 - **RunPick scene** (key `'RunPick'`) replaces the old `FloorClear` stub. Offered every 2nd floor (after floor 2, 4, 6 …). Three weighted-random run upgrade cards; selection stored in `RunCarry.runUpgrades[]`.
 
+## Rendering fix (2026-10-22)
+
+- **Tile layer switched from RenderTexture to per-tile Image objects.** `RenderTexture.drawFrame` with named frames registered via `texture.add()` fails silently in Phaser 3.90 — only numeric frame indices work reliably there. The tile layer now uses 510 `Phaser.GameObjects.Image` instances (depth 0), one per grid cell, identical to entity rendering which was already working. The exit shaft overlay is a separate Image at depth 1. `hudRT.drawFrame` was also changed to numeric indices for the same reason.
+- **Tile cleared to Empty at dig start** (not on arrival) so the tunnel is immediately visible.
+- **Player cannot dig into a tile occupied by a bag.** The check uses `findBagAt` before allowing the Dirt→dig transition.
+- **All item spawn positions set to Empty in floorgen.** Bags, gems, fuel, nests, and monsters all call `setTile(Empty)` when placed so items are never buried in solid dirt on floor load.
+- **Move speeds raised** from 6/4 to 14/8 tiles/s (tunnel/dig) to match the intended Digger feel.
+
 ## Bug fixes (2026-10-22)
 
 - **Canvas was expanded to 480×300** (+28 px for the HUD strip). This is now superseded by the art-pass layout above.
