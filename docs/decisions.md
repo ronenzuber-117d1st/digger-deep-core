@@ -9,6 +9,14 @@
 - Used regular enum for TileType and Action (not const enum) — Vite/esbuild strips types without compiling, so cross-file const enums are unsafe.
 - `"type": "module"` added to package.json so eslint.config.js uses ESM imports.
 
+## Bug fixes (2026-10-22)
+
+- **Canvas expanded to 480×300** (+28 px for the HUD strip). `DiveScene.create()` sets `gfx.setY(HUD_HEIGHT)` so all game tiles render below the HUD; overlays and debug panel repositioned accordingly.
+- **P pauses / unpauses.** ESC now shows a Y/N confirm-exit overlay instead of toggling pause directly. The game state remains frozen until the player answers.
+- **Bag fall delay** (`tuning.bag.fallDelay`, default 0.5 s): bags countdown via `pendingFallTimer` before physics fall begins, giving enemies time to walk under them.
+- **`fallDistance` is NOT reset on a safe landing.** A bag remembers cumulative fall distance across multiple falls, so a bag that previously fell 1 tile will break on the very next 1-tile fall (if `breakMinFall = 2`). Resetting it was a regression introduced when fallDelay was added.
+- **Nugget spawn positions are clamped to interior grid tiles.** `spawnNuggets` now skips any `(nx, ny)` where `tileAt` returns `Bedrock` (which covers both the border rows and any out-of-bounds coordinate). Previously, a bag breaking on row 15 could spawn nuggets on row 16 (bedrock) or row 17 (outside the grid), causing coins to appear below the visible play area.
+
 ## Week 2 (2026-10-21) — doc drift fixes
 
 - **Economy cost formula** corrected to `baseCost × 1.6^level` with tier base costs 60 (cheap), 90 (mid), 150 (expensive) per design doc. The week-1 scaffold used `100 × 1.5^level`.
