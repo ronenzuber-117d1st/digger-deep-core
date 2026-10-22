@@ -36,6 +36,7 @@ export function applyMovement(state: RunState, input: InputSnapshot, dt: number)
   if (tile === TileType.Bedrock) return events;
 
   if (tile === TileType.Dirt) {
+    if (findBagAt(state, tx, ty) !== null) return events;
     setTile(state.grid, tx, ty, TileType.Empty);
     p.fromX = p.x; p.fromY = p.y;
     p.toX = tx; p.toY = ty;

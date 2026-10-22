@@ -87,6 +87,7 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
+    setTile(grid, pos.x, pos.y, TileType.Empty);
     const fuel: FuelEntity = { kind: 'fuel', id: nextId++, x: pos.x, y: pos.y };
     entities.push(fuel);
   }
@@ -96,6 +97,7 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
+    setTile(grid, pos.x, pos.y, TileType.Empty);
     const bag: BagEntity = {
       kind: 'bag', id: nextId++, x: pos.x, y: pos.y,
       falling: false, fallProgress: 0, fallDistance: 0,
@@ -108,6 +110,7 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
+    setTile(grid, pos.x, pos.y, TileType.Empty);
     const gem: GemEntity = { kind: 'gem', id: nextId++, x: pos.x, y: pos.y };
     entities.push(gem);
   }
@@ -117,6 +120,7 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
+    setTile(grid, pos.x, pos.y, TileType.Empty);
     const nest: NestEntity = {
       kind: 'nest', id: nextId++, x: pos.x, y: pos.y,
       hp: tuning.nest.hp,
