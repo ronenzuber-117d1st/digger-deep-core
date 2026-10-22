@@ -3,8 +3,8 @@
   "player": {
     "startHp": 3,
     "startFuel": 100,
-    "moveSpeedTunnel": 6,
-    "moveSpeedDirt": 4,
+    "moveSpeedTunnel": 10,
+    "moveSpeedDirt": 6,
     "invulDuration": 1.0,
     "fuelDrainRate": 1,
     "fuelEmptyDamageRate": 1,

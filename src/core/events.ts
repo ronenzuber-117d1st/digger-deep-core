@@ -1,4 +1,5 @@
 export type GameEvent =
+  | { type: 'dig' }
   | { type: 'pickup'; kind: 'gem' | 'nugget' | 'fuel' }
   | { type: 'hit'; source: 'monster' | 'bag' | 'fuel-empty' }
   | { type: 'bag-break'; x: number; y: number }

@@ -18,10 +18,7 @@ export function applyMovement(state: RunState, input: InputSnapshot, dt: number)
       p.y = p.toY;
       p.moving = false;
       p.moveProgress = 0;
-      if (p.isDigging) {
-        setTile(state.grid, p.x, p.y, TileType.Empty);
-        p.isDigging = false;
-      }
+      p.isDigging = false;
       collectPickupsAt(state, p.x, p.y, events);
     }
     return events;
@@ -39,9 +36,11 @@ export function applyMovement(state: RunState, input: InputSnapshot, dt: number)
   if (tile === TileType.Bedrock) return events;
 
   if (tile === TileType.Dirt) {
+    setTile(state.grid, tx, ty, TileType.Empty);
     p.fromX = p.x; p.fromY = p.y;
     p.toX = tx; p.toY = ty;
     p.moving = true; p.moveProgress = 0; p.isDigging = true;
+    events.push({ type: 'dig' });
     return events;
   }
 
