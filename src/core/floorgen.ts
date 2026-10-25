@@ -82,26 +82,37 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     return null;
   };
 
+  // Bags need horizontal clearance from walls, vertical room to fall,
+  // and no two bags in the same column (prevents stacking).
+  const bagColumns = new Set<number>();
+  const pickBagPosition = (tries = 80): { x: number; y: number } | null => {
+    for (let i = 0; i < tries; i++) {
+      const x = nextInt(rng, 2, W - 2); // stay off left/right walls
+      const y = nextInt(rng, 1, H - 3); // leave 2 rows above bedrock floor
+      if (!isOccupied(x, y) && !bagColumns.has(x)) return { x, y };
+    }
+    return null;
+  };
+
   const fuelCount = nextInt(rng, tuning.fuel.perFloorMin, tuning.fuel.perFloorMax + 1);
   for (let i = 0; i < fuelCount; i++) {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
-    setTile(grid, pos.x, pos.y, TileType.Empty);
     const fuel: FuelEntity = { kind: 'fuel', id: nextId++, x: pos.x, y: pos.y };
     entities.push(fuel);
   }
 
   const bagCount = nextInt(rng, tuning.bag.perFloorMin, tuning.bag.perFloorMax + 1);
   for (let i = 0; i < bagCount; i++) {
-    const pos = pickInterior();
+    const pos = pickBagPosition();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
-    setTile(grid, pos.x, pos.y, TileType.Empty);
+    bagColumns.add(pos.x);
     const bag: BagEntity = {
       kind: 'bag', id: nextId++, x: pos.x, y: pos.y,
       falling: false, fallProgress: 0, fallDistance: 0,
-      pendingFallTimer: tuning.bag.fallDelay,
+      pendingFallTimer: 0,
     };
     entities.push(bag);
   }
@@ -110,7 +121,6 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const pos = pickInterior();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
-    setTile(grid, pos.x, pos.y, TileType.Empty);
     const gem: GemEntity = { kind: 'gem', id: nextId++, x: pos.x, y: pos.y };
     entities.push(gem);
   }

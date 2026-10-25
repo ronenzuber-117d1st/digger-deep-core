@@ -13,7 +13,13 @@ import tuning from '../data/tuning.json';
 const T = 16;
 const GRID_W = tuning.floor.width;
 const GRID_H = tuning.floor.height;
-const BIOME_NAMES = ['TOPSOIL', 'FOSSIL BED', 'CRYSTAL DEPTHS', 'MAGMA RIM'];
+const BIOME_NAMES  = ['TOPSOIL', 'FOSSIL BED', 'CRYSTAL WARRENS', 'MAGMA RIM'];
+const BIOME_COLORS = [COLOR.good, COLOR.amber, COLOR.cyan, COLOR.warn];
+const BIOME_TILES  = ['tiles_topsoil', 'tiles_topsoil', 'tiles_crystal', 'tiles_topsoil'];
+
+function biomeIndex(floor: number): number {
+  return Math.min(Math.floor((floor - 1) / 5), BIOME_NAMES.length - 1);
+}
 
 // tiles_topsoil spritesheet has 12 columns; frame index = row*12 + col
 const TILE_FRAMES: Record<string, number> = {
@@ -32,10 +38,9 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * Math.min(1, t);
 }
 
-function biomeName(floor: number): string {
-  const idx = Math.min(Math.floor((floor - 1) / 5), BIOME_NAMES.length - 1);
-  return BIOME_NAMES[idx];
-}
+function biomeName(floor: number): string  { return BIOME_NAMES[biomeIndex(floor)]; }
+function biomeColor(floor: number): number { return BIOME_COLORS[biomeIndex(floor)]; }
+function biomeTileKey(floor: number): string { return BIOME_TILES[biomeIndex(floor)]; }
 
 // ── Floating score popup ────────────────────────────────────────────────────
 
@@ -66,6 +71,12 @@ export class DiveRenderer {
   // Pulse flash overlay
   private pulseGfx: Phaser.GameObjects.Graphics;
 
+  // Bottom-bedrock purple hum
+  private humGfx: Phaser.GameObjects.Graphics;
+
+  // Tracks current tile sheet so we can batch-switch textures only on biome change
+  private currentTileKey = 'tiles_topsoil';
+
   private animTimer = 0;
 
   constructor(scene: Phaser.Scene) {
@@ -94,6 +105,9 @@ export class DiveRenderer {
 
     // Pulse flash overlay, depth 3
     this.pulseGfx = scene.add.graphics().setDepth(3);
+
+    // Purple hum strip above bottom bedrock row, depth 1
+    this.humGfx = scene.add.graphics().setDepth(1);
 
     // HUD sprite layer — top 16 px, above everything, fixed to camera
     this.hudRT = scene.add
@@ -127,6 +141,7 @@ export class DiveRenderer {
     const a2 = Math.floor(this.animTimer * 2) % 2;
 
     this.drawTiles(state, a2);
+    this.drawHum();
     this.drawPlayer(state, a6);
     this.drawEntities(state, a6, a2);
     this.drawHUD(state);
@@ -137,6 +152,10 @@ export class DiveRenderer {
   // ── Tile layer ────────────────────────────────────────────────────────────
 
   private drawTiles(state: RunState, a2: number): void {
+    const tileKey = biomeTileKey(state.floor);
+    const keyChanged = tileKey !== this.currentTileKey;
+    if (keyChanged) this.currentTileKey = tileKey;
+
     const { grid } = state;
     let exitX = -1;
     let exitY = -1;
@@ -154,7 +173,12 @@ export class DiveRenderer {
           frame = TILE_FRAMES[emptyTileFrame(grid, x, y)];
           if (tile === TileType.Exit) { exitX = x; exitY = y; }
         }
-        this.tileImages[y * grid.width + x].setFrame(frame);
+        const img = this.tileImages[y * grid.width + x];
+        if (keyChanged) {
+          img.setTexture(tileKey, frame);
+        } else {
+          img.setFrame(frame);
+        }
       }
     }
 
@@ -341,10 +365,10 @@ export class DiveRenderer {
     const floorX = emX + 18 + measureText(emStr) + 10;
     this.hudFloorText.setText(floorStr).setX(floorX);
 
-    // Biome name — right-aligned before right bedrock column
+    // Biome name — right-aligned before right bedrock column, color matches biome
     const biome = biomeName(state.floor);
     const biomeW = measureText(biome);
-    this.hudBiomeText.setText(biome).setX(480 - 16 - biomeW - 2);
+    this.hudBiomeText.setText(biome).setX(480 - 16 - biomeW - 2).setTint(biomeColor(state.floor));
 
     // LOW! warning
     if (lowFuel) {
@@ -367,6 +391,21 @@ export class DiveRenderer {
     this.pulseGfx.clear();
   }
 
+  // ── Purple hum ────────────────────────────────────────────────────────────
+
+  private drawHum(): void {
+    this.humGfx.clear();
+    const y = (GRID_H - 1) * T;
+    // Solid base strip
+    this.humGfx.fillStyle(0x6b3fa0).fillRect(0, y, GRID_W * T, 1);
+    // Brighter accent pixels that shift position at ~6 Hz
+    const offset = Math.floor(this.animTimer * 6) % 2 * 3;
+    this.humGfx.fillStyle(0xb66be0);
+    for (let x = offset; x < GRID_W * T; x += 6) {
+      this.humGfx.fillRect(x, y, 1, 1);
+    }
+  }
+
   // ── Events → visual effects ───────────────────────────────────────────────
 
   private processEvents(events: GameEvent[], state: RunState): void {
@@ -375,6 +414,11 @@ export class DiveRenderer {
         case 'hit':
           this.scene.cameras.main.shake(200, 0.003);
           break;
+        case 'dig': {
+          const de = ev as { x: number; y: number; dir: string };
+          this.spawnDigDust(de.x, de.y, de.dir);
+          break;
+        }
         case 'bag-break':
           this.spawnStarburst((ev as { x: number; y: number }).x, (ev as { x: number; y: number }).y);
           break;
@@ -401,6 +445,20 @@ export class DiveRenderer {
       gfx.fillRect(ex - 1, ey - 1, 2, 2);
     }
     this.scene.time.delayedCall(300, () => gfx.destroy());
+  }
+
+  private spawnDigDust(tx: number, ty: number, dir: string): void {
+    const gfx = this.scene.add.graphics().setDepth(5);
+    const cx = tx * T + 8;
+    const cy = ty * T + 8;
+    const ddx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
+    const ddy = dir === 'down'  ? 1 : dir === 'up'   ? -1 : 0;
+    // Small fan of dirt pixels spraying in the dig direction
+    gfx.fillStyle(0xf4eed9).fillRect(cx + ddx * 3,       cy + ddy * 3,       1, 1);
+    gfx.fillStyle(0xb57a46).fillRect(cx + ddx * 4 + ddy, cy + ddy * 4 + ddx, 1, 1);
+    gfx.fillStyle(0xb57a46).fillRect(cx + ddx * 4 - ddy, cy + ddy * 4 - ddx, 1, 1);
+    gfx.fillStyle(0x8f5a33).fillRect(cx + ddx * 5,       cy + ddy * 5,       1, 1);
+    this.scene.time.delayedCall(160, () => gfx.destroy());
   }
 
   private spawnFloatText(tx: number, ty: number, text: string, tint: number): void {

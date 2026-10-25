@@ -51,7 +51,7 @@
     {
       "id": "extraPick",
       "label": "Extra Pick",
-      "description": "Start every dive with 1 free run pick",
+      "description": "Free pick per dive",
       "maxLevel": 1,
       "baseCost": 150,
       "tier": "expensive"
@@ -59,7 +59,7 @@
     {
       "id": "lanternMount",
       "label": "Lantern Mount",
-      "description": "Lantern effect on all dives",
+      "description": "Lantern on all dives",
       "maxLevel": 1,
       "baseCost": 90,
       "tier": "mid"

@@ -513,6 +513,8 @@ function portrait(who) {
 // ─── Tiles ───────────────────────────────────────────────────────────────────
 const THEMES = {
   A: { dirt:{ mid:6, hi:7, lo:5, peb:8, pebLo:4, lit:9, rim:4, shade:5 }, floor:1, fspeck:2, shadow:0 },
+  // Crystal Warrens: cool slate with pale crystal flecks; tunnels stay deep indigo
+  B: { dirt:{ mid:3, hi:27, lo:2, peb:26, pebLo:2, lit:27, rim:1, shade:2 }, floor:1, fspeck:3, shadow:0 },
 };
 const NOM = { n:0, e:0, s:0, w:0, nw:0, ne:0, sw:0, se:0 };
 
@@ -540,6 +542,15 @@ function drawFloor(b, ox, oy, T, seed, sn, sw) {
   for(let y=0;y<16;y++) for(let x=0;x<16;x++){
     let c=T.floor; const v=r(); if(v<0.04)c=T.fspeck;
     if(sn&&y<2)c=T.shadow; if(sw&&x<1)c=T.shadow;
+    b.px(ox+x,oy+y,c);
+  }
+}
+
+function drawCorridor(b, ox, oy, T, seed, m) {
+  const r=rng(seed+99);
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++){
+    let c=T.floor; if(r()<0.04)c=T.fspeck;
+    if(m.n&&y<2)c=T.shadow; if(m.w&&x<2)c=T.shadow;
     b.px(ox+x,oy+y,c);
   }
 }
@@ -735,12 +746,49 @@ function run() {
     // Row 2: 7 corridor variants
     const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
     E2.forEach((m,i)=>{
-      const t=new Buf(16,16,0); drawDirt(t,0,0,T,120+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH);
+      const t=new Buf(16,16,0); drawCorridor(t,0,0,T,120+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH);
     });
 
     writePNG(sheet, join(OUT,'tiles_topsoil.png'), false); // tiles are fully opaque
     manifest.sheets.push({
       name:'tiles_topsoil', file:'tiles_topsoil.png', frameWidth:16, frameHeight:16,
+      cols:COLS, rows:ROWS,
+      frames: [
+        {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},
+        {name:'floor',col:4,row:0},{name:'floor_shadowed',col:5,row:0},
+        {name:'bedrock_0',col:6,row:0},{name:'bedrock_1',col:7,row:0},{name:'bedrock_2',col:8,row:0},
+        {name:'edge_n',col:0,row:1},{name:'edge_e',col:1,row:1},{name:'edge_s',col:2,row:1},{name:'edge_w',col:3,row:1},
+        {name:'corner_nw',col:4,row:1},{name:'corner_ne',col:5,row:1},{name:'corner_se',col:6,row:1},{name:'corner_sw',col:7,row:1},
+        {name:'concave_nw',col:8,row:1},{name:'concave_ne',col:9,row:1},{name:'concave_se',col:10,row:1},{name:'concave_sw',col:11,row:1},
+        {name:'corridor_ns',col:0,row:2},{name:'corridor_ew',col:1,row:2},
+        {name:'corridor_new',col:2,row:2},{name:'corridor_esw',col:3,row:2},
+        {name:'corridor_nes',col:4,row:2},{name:'corridor_nsw',col:5,row:2},
+        {name:'corridor_all',col:6,row:2},
+      ],
+    });
+  }
+
+  // ── Crystal Warrens tile set ─────────────────────────────────────────────────
+  // Identical layout to topsoil so TILE_FRAMES indices are interchangeable.
+  {
+    const T = THEMES.B;
+    const COLS = 12, ROWS = 3, CW = 16, CH = 16;
+    const sheet = new Buf(COLS*CW, ROWS*CH, 0);
+    for (let i=0;i<4;i++){
+      const t=new Buf(16,16,0); drawDirt(t,0,0,T,240+i*9); placeTile(sheet,t,i,0,CW,CH);
+    }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,205,false,false); placeTile(sheet,t,4,0,CW,CH); }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,206,true,true);   placeTile(sheet,t,5,0,CW,CH); }
+    for(let i=0;i<3;i++){
+      const t=new Buf(16,16,0); drawBedrock(t,0,0,260+i*7); placeTile(sheet,t,6+i,0,CW,CH);
+    }
+    const E1=[{n:1},{e:1},{s:1},{w:1},{n:1,w:1},{n:1,e:1},{s:1,e:1},{s:1,w:1},{nw:1},{ne:1},{se:1},{sw:1}];
+    E1.forEach((m,i)=>{ const t=new Buf(16,16,0); drawDirt(t,0,0,T,277+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,1,CW,CH); });
+    const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
+    E2.forEach((m,i)=>{ const t=new Buf(16,16,0); drawCorridor(t,0,0,T,320+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH); });
+    writePNG(sheet, join(OUT,'tiles_crystal.png'), false);
+    manifest.sheets.push({
+      name:'tiles_crystal', file:'tiles_crystal.png', frameWidth:16, frameHeight:16,
       cols:COLS, rows:ROWS,
       frames: [
         {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},

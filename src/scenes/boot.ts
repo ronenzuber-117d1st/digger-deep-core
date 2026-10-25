@@ -18,6 +18,8 @@ export class BootScene extends Phaser.Scene {
       });
     }
     this.load.bitmapFont('coalface', 'assets/sprites/font.png', 'assets/sprites/font.xml');
+    this.load.image('title_a', 'assets/title/title_a.png');
+    this.load.image('title_b', 'assets/title/title_b.png');
   }
 
   create(): void {

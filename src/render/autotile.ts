@@ -34,10 +34,16 @@ export function dirtTileFrame(grid: Grid, x: number, y: number): string {
 }
 
 export function emptyTileFrame(grid: Grid, x: number, y: number): string {
-  const dn = tileAt(grid, x, y - 1) === TileType.Dirt;
-  const de = tileAt(grid, x + 1, y) === TileType.Dirt;
-  const ds = tileAt(grid, x, y + 1) === TileType.Dirt;
-  const dw = tileAt(grid, x - 1, y) === TileType.Dirt;
+  // Treat Bedrock the same as Dirt for corridor-wall selection so that
+  // tiles adjacent to the map border get proper corridor frames.
+  const isSolidWall = (nx: number, ny: number) => {
+    const t = tileAt(grid, nx, ny);
+    return t === TileType.Dirt || t === TileType.Bedrock;
+  };
+  const dn = isSolidWall(x, y - 1);
+  const de = isSolidWall(x + 1, y);
+  const ds = isSolidWall(x, y + 1);
+  const dw = isSolidWall(x - 1, y);
   const dirtMask = (dn ? 1 : 0) | (de ? 2 : 0) | (ds ? 4 : 0) | (dw ? 8 : 0);
 
   // Corridor variants: letters name the SOLID sides

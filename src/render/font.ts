@@ -6,19 +6,19 @@ export const FONT_ADVANCE = 6;
 export const FONT_LINE_HEIGHT = 9;
 
 export const COLOR = {
-  body:    0xe8e6df,
-  heading: 0xf0a04b,
+  body:    0xf4eed9,
+  heading: 0xf7c94b,
   bold:    0xffffff,
-  soft:    0x78768a,
-  muted:   0x43365f,
-  warn:    0xf28f2e,
+  soft:    0xb9b3a5,
+  muted:   0x78768a,
+  warn:    0xe0502f,
   good:    0x5bc46a,
-  amber:   0xf0a04b,
+  amber:   0xf7c94b,
   cyan:    0x5bb8e8,
   gold:    0xf7c94b,
   green:   0x5bc46a,
   red:     0xe0502f,
-  purple:  0x9b59b6,
+  purple:  0x6b3fa0,
 };
 
 export function measureText(text: string, size = FONT_SIZE): number {
