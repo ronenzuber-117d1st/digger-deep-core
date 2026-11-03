@@ -1,0 +1,254 @@
+{
+  "scenes": {
+    "Title":   "title",
+    "Base":    "base",
+    "biome0":  "topsoil",
+    "biome1":  "fossilBed",
+    "biome2":  "crystalDepths",
+    "biome3":  "fungalHollow",
+    "biome4":  "magmaSeams",
+    "biome5":  "frozenVault"
+  },
+  "tracks": {
+    "title": {
+      "file": "title.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.125, "adsr": { "attack": 0.02, "decay": 0.15, "sustain": 0.75, "release": 0.12 }, "vibrato": { "depth": 4, "rate": 5.0, "delay": 0.4 }, "volume": 0.7 },
+        "pulse2":   { "duty": 0.125, "adsr": { "attack": 0.03, "decay": 0.20, "sustain": 0.60, "release": 0.12 }, "volume": 0.45 },
+        "triangle": { "adsr": { "attack": 0.005, "decay": 0.05, "sustain": 0.90, "release": 0.04 }, "volume": 0.55 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.08, "sustain": 0.0, "release": 0.02 }, "volume": 0.25 }
+      },
+      "mix": {
+        "delay":       { "time": 0.22, "feedback": 0.28, "level": 0.18, "enabled": true },
+        "panning":     { "p1": -0.30, "p2": 0.30 },
+        "masterLowPass": 11000,
+        "masterVolume":  0.52
+      }
+    },
+    "base": {
+      "file": "base.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.50, "adsr": { "attack": 0.01, "decay": 0.10, "sustain": 0.80, "release": 0.08 }, "vibrato": { "depth": 3, "rate": 4.5, "delay": 0.5 }, "volume": 0.70 },
+        "pulse2":   { "duty": 0.25, "adsr": { "attack": 0.005, "decay": 0.05, "sustain": 0.70, "release": 0.04 }, "volume": 0.40 },
+        "triangle": { "adsr": { "attack": 0.005, "decay": 0.04, "sustain": 0.90, "release": 0.03 }, "volume": 0.50 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.06, "sustain": 0.0, "release": 0.02 }, "volume": 0.18 }
+      },
+      "mix": {
+        "delay":       { "time": 0.20, "feedback": 0.22, "level": 0.12, "enabled": true },
+        "panning":     { "p1": -0.25, "p2": 0.25 },
+        "masterLowPass": 12000,
+        "masterVolume":  0.50
+      }
+    },
+    "topsoil": {
+      "file": "topsoil.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 24,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.25, "adsr": { "attack": 0.005, "decay": 0.08, "sustain": 0.75, "release": 0.05 }, "volume": 0.72 },
+        "pulse2":   { "duty": 0.50, "adsr": { "attack": 0.003, "decay": 0.04, "sustain": 0.65, "release": 0.03 }, "volume": 0.38 },
+        "triangle": { "adsr": { "attack": 0.003, "decay": 0.03, "sustain": 0.88, "release": 0.03 }, "volume": 0.55 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.01 }, "volume": 0.32 }
+      },
+      "mix": {
+        "delay":       { "time": 0.18, "feedback": 0.18, "level": 0.10, "enabled": false },
+        "panning":     { "p1": -0.20, "p2": 0.20 },
+        "masterLowPass": 13000,
+        "masterVolume":  0.55
+      }
+    },
+    "fossilBed": {
+      "file": "fossil-bed.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.125, "adsr": { "attack": 0.03, "decay": 0.18, "sustain": 0.70, "release": 0.15 }, "vibrato": { "depth": 5, "rate": 4.8, "delay": 0.35 }, "volume": 0.65 },
+        "pulse2":   { "duty": 0.125, "adsr": { "attack": 0.04, "decay": 0.20, "sustain": 0.55, "release": 0.15 }, "volume": 0.38 },
+        "triangle": { "adsr": { "attack": 0.008, "decay": 0.06, "sustain": 0.88, "release": 0.05 }, "volume": 0.52 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.07, "sustain": 0.0, "release": 0.02 }, "volume": 0.20 }
+      },
+      "mix": {
+        "delay":       { "time": 0.24, "feedback": 0.30, "level": 0.20, "enabled": true },
+        "panning":     { "p1": -0.35, "p2": 0.35 },
+        "masterLowPass": 10000,
+        "masterVolume":  0.48
+      }
+    },
+    "crystalDepths": {
+      "file": "crystal-depths.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.25, "adsr": { "attack": 0.008, "decay": 0.12, "sustain": 0.72, "release": 0.10 }, "vibrato": { "depth": 4, "rate": 5.5, "delay": 0.3 }, "volume": 0.68 },
+        "pulse2":   { "duty": 0.50, "adsr": { "attack": 0.003, "decay": 0.03, "sustain": 0.60, "release": 0.03 }, "volume": 0.42 },
+        "triangle": { "adsr": { "attack": 0.006, "decay": 0.05, "sustain": 0.85, "release": 0.04 }, "volume": 0.48 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.04, "sustain": 0.0, "release": 0.01 }, "volume": 0.18 }
+      },
+      "mix": {
+        "delay":       { "time": 0.20, "feedback": 0.25, "level": 0.15, "enabled": true },
+        "panning":     { "p1": -0.30, "p2": 0.30 },
+        "masterLowPass": 12000,
+        "masterVolume":  0.50
+      }
+    },
+    "fungalHollow": {
+      "file": "fungal-hollow.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 24,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.25, "adsr": { "attack": 0.006, "decay": 0.10, "sustain": 0.78, "release": 0.06 }, "volume": 0.72 },
+        "pulse2":   { "duty": 0.125, "adsr": { "attack": 0.006, "decay": 0.10, "sustain": 0.60, "release": 0.06 }, "volume": 0.42 },
+        "triangle": { "adsr": { "attack": 0.004, "decay": 0.04, "sustain": 0.88, "release": 0.03 }, "volume": 0.55 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.01 }, "volume": 0.35 }
+      },
+      "mix": {
+        "delay":       { "time": 0.19, "feedback": 0.22, "level": 0.12, "enabled": false },
+        "panning":     { "p1": -0.22, "p2": 0.22 },
+        "masterLowPass": 12000,
+        "masterVolume":  0.54
+      }
+    },
+    "magmaSeams": {
+      "file": "magma-seams.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.50, "adsr": { "attack": 0.003, "decay": 0.06, "sustain": 0.82, "release": 0.04 }, "volume": 0.75 },
+        "pulse2":   { "duty": 0.25, "adsr": { "attack": 0.003, "decay": 0.04, "sustain": 0.70, "release": 0.03 }, "volume": 0.45 },
+        "triangle": { "adsr": { "attack": 0.003, "decay": 0.03, "sustain": 0.90, "release": 0.03 }, "volume": 0.60 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.01 }, "volume": 0.40 }
+      },
+      "mix": {
+        "delay":       { "time": 0.16, "feedback": 0.20, "level": 0.10, "enabled": false },
+        "panning":     { "p1": -0.18, "p2": 0.18 },
+        "masterLowPass": 13000,
+        "masterVolume":  0.57
+      }
+    },
+    "frozenVault": {
+      "file": "frozen-vault.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 16,
+      "beatsPerBar": 4,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.25, "adsr": { "attack": 0.01, "decay": 0.12, "sustain": 0.74, "release": 0.08 }, "vibrato": { "depth": 3, "rate": 5.0, "delay": 0.4 }, "volume": 0.68 },
+        "pulse2":   { "duty": 0.25, "adsr": { "attack": 0.006, "decay": 0.08, "sustain": 0.65, "release": 0.06 }, "volume": 0.40 },
+        "triangle": { "adsr": { "attack": 0.005, "decay": 0.05, "sustain": 0.88, "release": 0.04 }, "volume": 0.52 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.01 }, "volume": 0.22 }
+      },
+      "mix": {
+        "delay":       { "time": 0.21, "feedback": 0.26, "level": 0.16, "enabled": true },
+        "panning":     { "p1": -0.28, "p2": 0.28 },
+        "masterLowPass": 11000,
+        "masterVolume":  0.50
+      }
+    },
+    "death": {
+      "file": "death.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 0,
+      "beatsPerBar": 4,
+      "isJingle": true,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 2, "voice": "triangle" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.25, "adsr": { "attack": 0.005, "decay": 0.08, "sustain": 0.70, "release": 0.20 }, "volume": 0.70 },
+        "pulse2":   { "duty": 0.25, "adsr": { "attack": 0.005, "decay": 0.08, "sustain": 0.70, "release": 0.10 }, "volume": 0.40 },
+        "triangle": { "adsr": { "attack": 0.003, "decay": 0.05, "sustain": 0.85, "release": 0.15 }, "volume": 0.50 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.02 }, "volume": 0.20 }
+      },
+      "mix": {
+        "delay":       { "time": 0.20, "feedback": 0.20, "level": 0.10, "enabled": false },
+        "panning":     { "p1": 0.0, "p2": 0.0 },
+        "masterLowPass": 12000,
+        "masterVolume":  0.55
+      }
+    },
+    "victory": {
+      "file": "victory.mid",
+      "loopStartBar": 0,
+      "loopEndBar": 0,
+      "beatsPerBar": 4,
+      "isJingle": true,
+      "trackMapping": [
+        { "channel": 0, "voice": "pulse1" },
+        { "channel": 1, "voice": "pulse2" },
+        { "channel": 2, "voice": "triangle" },
+        { "channel": 9, "voice": "noise" }
+      ],
+      "voices": {
+        "pulse1":   { "duty": 0.50, "adsr": { "attack": 0.005, "decay": 0.08, "sustain": 0.80, "release": 0.10 }, "volume": 0.75 },
+        "pulse2":   { "duty": 0.25, "adsr": { "attack": 0.005, "decay": 0.06, "sustain": 0.70, "release": 0.08 }, "volume": 0.45 },
+        "triangle": { "adsr": { "attack": 0.003, "decay": 0.04, "sustain": 0.88, "release": 0.06 }, "volume": 0.55 },
+        "noise":    { "adsr": { "attack": 0.001, "decay": 0.05, "sustain": 0.0, "release": 0.01 }, "volume": 0.30 }
+      },
+      "mix": {
+        "delay":       { "time": 0.18, "feedback": 0.15, "level": 0.10, "enabled": false },
+        "panning":     { "p1": 0.0, "p2": 0.0 },
+        "masterLowPass": 12000,
+        "masterVolume":  0.58
+      }
+    }
+  }
+}

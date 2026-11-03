@@ -5,6 +5,7 @@ import { upgradeCost, UpgradeTier } from '../core/economy';
 import upgradesDef from '../data/upgrades.json';
 import tuning from '../data/tuning.json';
 import { bitmapLabel, COLOR, measureText } from '../render/font';
+import { playTrack, stopTrack } from '../audio/index';
 
 const UPGRADE_IDS = upgradesDef.permanent.map((u) => u.id as PermanentUpgradeId);
 
@@ -25,11 +26,11 @@ const CAMP_W  = 480 - PANEL_W;
 
 // Upgrade bench row layout
 const ROW_START_Y = 32;
-const ROW_H       = 30;
+const ROW_H       = 33;
 const COL_ICON_X  = 4;
 const COL_TEXT_X  = 24;
-const COL_COST_X  = 150; // emerald icon centre-x
-const COL_NUM_X   = 160; // cost number left-x
+const COL_COST_X  = 184; // emerald icon centre-x
+const COL_NUM_X   = 195; // cost number left-x
 const COL_BTN_X   = 228;
 const BTN_W       = 56;
 const BTN_H       = 14;
@@ -40,12 +41,29 @@ const WOOD_BORDER = 0x6b4128;
 const PANEL_BG    = 0x1b1630;
 
 // Button fill colours
-const BTN_GREEN_NORMAL  = 0x2f8f4e;
-const BTN_GREEN_HOVER   = 0x5bc46a;
-const BTN_GREEN_BORDER  = 0x0d0b14;
-const BTN_GREEN_BORDER_H= 0x0d0b14;
-const BTN_DISABLED_BG   = 0x1b1630;
-const BTN_DISABLED_BDR  = 0x2c2347;
+const BTN_GREEN_NORMAL     = 0x2f8f4e;
+const BTN_GREEN_HOVER      = 0x5bc46a;
+const BTN_GREEN_BORDER     = 0x1b1630;
+const BTN_GREEN_HIGHLIGHT  = 0x5bc46a;
+const BTN_GREEN_SHADOW     = 0x1d5c3c;
+const BTN_HOVER_HIGHLIGHT  = 0x82dc8c;
+const BTN_HOVER_SHADOW     = 0x3d7a50;
+const BTN_DISABLED_BG      = 0x1b1630;
+const BTN_DISABLED_BDR     = 0x2c2347;
+const BTN_DISABLED_HILITE  = 0x2c2347;
+const BTN_DISABLED_SHADOW  = 0x0d0b14;
+
+function drawDepthBtn(
+  gfx: Phaser.GameObjects.Graphics,
+  x: number, y: number, w: number, h: number,
+  fill: number, border: number, hilite: number, shadow: number,
+): void {
+  gfx
+    .lineStyle(1, border).strokeRect(x, y, w, h)
+    .fillStyle(fill).fillRect(x + 1, y + 1, w - 2, h - 2)
+    .lineStyle(1, hilite).lineBetween(x + 1, y + 1, x + w - 2, y + 1)
+    .lineStyle(1, shadow).lineBetween(x + 1, y + h - 2, x + w - 2, y + h - 2);
+}
 
 const TESSA_LINES = [
   "THAT DRILL IS HELD TOGETHER BY SPITE AND TAPE. BRING IT BACK IN ONE PIECE.",
@@ -71,6 +89,7 @@ export class BaseScene extends Phaser.Scene {
   private emeraldLbl!:  Phaser.GameObjects.BitmapText;
   private emeraldIcon!: Phaser.GameObjects.Image;
   private emeraldNum!:  Phaser.GameObjects.BitmapText;
+  private campImg!: Phaser.GameObjects.Image;
   private confirmVisible = false;
   private confirmSelected = 1;   // 0 = NO, 1 = YES
   private confirmObjs: Phaser.GameObjects.GameObject[] = [];
@@ -81,12 +100,22 @@ export class BaseScene extends Phaser.Scene {
     super({ key: 'Base' });
   }
 
+  preload(): void {
+    for (let i = 0; i < 7; i++) {
+      if (!this.textures.exists(`camp_${i}`)) {
+        this.load.image(`camp_${i}`, `assets/camp/camp_${i}.png`);
+      }
+    }
+  }
+
   init(): void {
     this.save = loadSave();
   }
 
   create(): void {
     this.upgradeRows.clear();
+    void playTrack('base');
+    this.events.once('shutdown', stopTrack);
 
     // ── Background ────────────────────────────────────────────────────────
     this.add.rectangle(240, 136, 480, 272, 0x0d0b14);
@@ -109,13 +138,23 @@ export class BaseScene extends Phaser.Scene {
     }
 
     // ── Left panel ────────────────────────────────────────────────────────
+    // strokeRect at (1,16) so left border sits inside canvas; height=247 → y=263
+    // 2px bevel: outer WOOD_BORDER frame + inner highlight (top/left) / shadow (bottom/right)
     this.add.graphics()
       .fillStyle(PANEL_BG).fillRect(0, 16, PANEL_W, 256)
-      .lineStyle(1, WOOD_BORDER).strokeRect(0, 16, PANEL_W, 256);
+      .lineStyle(1, WOOD_BORDER).strokeRect(1, 16, PANEL_W - 1, 247)
+      .lineStyle(1, 0x8f5a33)
+      .lineBetween(2, 17, PANEL_W - 1, 17)
+      .lineBetween(2, 17, 2, 262)
+      .lineStyle(1, 0x2a1a14)
+      .lineBetween(2, 262, PANEL_W - 1, 262)
+      .lineBetween(PANEL_W - 1, 17, PANEL_W - 1, 262);
 
-    // Header bar
+    // Header bar (raised 3D look)
     this.add.graphics()
       .fillStyle(WOOD_BG).fillRect(1, 17, PANEL_W - 2, 14)
+      .lineStyle(1, 0x8f5a33).lineBetween(2, 17, PANEL_W - 2, 17)
+      .lineStyle(1, 0x2a1a14).lineBetween(1, 30, PANEL_W - 1, 30)
       .lineStyle(1, WOOD_BORDER).lineBetween(1, 31, PANEL_W - 1, 31);
     bitmapLabel(this, 6, 20, 'UPGRADE BENCH', COLOR.bold);
     bitmapLabel(this, PANEL_W - measureText('PERMANENT') - 6, 20, 'PERMANENT', COLOR.amber);
@@ -123,14 +162,14 @@ export class BaseScene extends Phaser.Scene {
     this.buildUpgradeList();
 
     // ── Right panel ───────────────────────────────────────────────────────
-    this.drawCampScene();
+    this.setupCampAnimation();
     this.drawDialogue('TESSA', TESSA_LINES[Math.floor(Math.random() * TESSA_LINES.length)]);
     this.drawDiveButton();
 
     // Floor label strip (panel-bg background)
-    this.add.graphics().fillStyle(PANEL_BG).fillRect(CAMP_X, 254, CAMP_W, 18);
+    this.add.graphics().setDepth(2).fillStyle(PANEL_BG).fillRect(CAMP_X, 254, CAMP_W, 18);
     const flStr = 'FLOOR 1 - TOPSOIL';
-    bitmapLabel(this, CAMP_X + Math.floor((CAMP_W - measureText(flStr)) / 2), 258, flStr, COLOR.muted);
+    bitmapLabel(this, CAMP_X + Math.floor((CAMP_W - measureText(flStr)) / 2), 258, flStr, COLOR.muted).setDepth(3);
 
     this.input.keyboard!.on('keydown-ENTER', () => {
       if (this.confirmVisible) {
@@ -221,20 +260,15 @@ export class BaseScene extends Phaser.Scene {
     row.buyGfx.clear();
 
     if (over) {
-      row.buyGfx
-        .fillStyle(BTN_GREEN_HOVER).fillRect(COL_BTN_X, btnY, BTN_W, BTN_H)
-        .lineStyle(1, BTN_GREEN_BORDER_H).strokeRect(COL_BTN_X, btnY, BTN_W, BTN_H);
-      row.buyLbl
-        .setTint(0x0d0b14)
-        .setPosition(COL_BTN_X + Math.floor((BTN_W - measureText('BUY')) / 2), btnY + 3);
+      drawDepthBtn(row.buyGfx, COL_BTN_X, btnY, BTN_W, BTN_H,
+        BTN_GREEN_HOVER, BTN_GREEN_BORDER, BTN_HOVER_HIGHLIGHT, BTN_HOVER_SHADOW);
     } else {
-      row.buyGfx
-        .fillStyle(BTN_GREEN_NORMAL).fillRect(COL_BTN_X, btnY, BTN_W, BTN_H)
-        .lineStyle(1, BTN_GREEN_BORDER).strokeRect(COL_BTN_X, btnY, BTN_W, BTN_H);
-      row.buyLbl
-        .setTint(0x0d0b14)
-        .setPosition(COL_BTN_X + Math.floor((BTN_W - measureText('BUY')) / 2), btnY + 3);
+      drawDepthBtn(row.buyGfx, COL_BTN_X, btnY, BTN_W, BTN_H,
+        BTN_GREEN_NORMAL, BTN_GREEN_BORDER, BTN_GREEN_HIGHLIGHT, BTN_GREEN_SHADOW);
     }
+    row.buyLbl
+      .setTint(0x0d0b14)
+      .setPosition(COL_BTN_X + Math.floor((BTN_W - measureText('BUY')) / 2), btnY + 3);
   }
 
   private refreshUpgradeRow(id: PermanentUpgradeId): void {
@@ -252,15 +286,17 @@ export class BaseScene extends Phaser.Scene {
 
     // Description (replaces level text; pips show level progress)
     row.levelLbl
-      .setText(maxed && isSingle ? 'OWNED' : def.description)
+      .setText((maxed && isSingle ? 'OWNED' : def.description).toUpperCase())
       .setTint(maxed ? COLOR.muted : COLOR.soft);
 
-    // Pips
+    // Pips — centered under the BUY button
     row.pipGfx.clear();
     if (!isSingle) {
+      const totalPipW = (def.maxLevel - 1) * 7 + 5;
+      const pipStartX = COL_BTN_X + Math.floor((BTN_W - totalPipW) / 2);
+      const py = ry + 8 + BTN_H + 3;
       for (let p = 0; p < def.maxLevel; p++) {
-        const px = COL_TEXT_X + p * 7;
-        const py = ry + 22;
+        const px = pipStartX + p * 7;
         row.pipGfx.fillStyle(p < lvl ? 0xf7c94b : 0x2c2347).fillRect(px, py, 5, 3);
       }
     }
@@ -282,9 +318,8 @@ export class BaseScene extends Phaser.Scene {
     row.buyGfx.clear();
 
     if (maxed) {
-      row.buyGfx
-        .fillStyle(BTN_DISABLED_BG).fillRect(COL_BTN_X, btnY, BTN_W, BTN_H)
-        .lineStyle(1, BTN_DISABLED_BDR).strokeRect(COL_BTN_X, btnY, BTN_W, BTN_H);
+      drawDepthBtn(row.buyGfx, COL_BTN_X, btnY, BTN_W, BTN_H,
+        BTN_DISABLED_BG, BTN_DISABLED_BDR, BTN_DISABLED_HILITE, BTN_DISABLED_SHADOW);
       row.buyLbl
         .setText('MAX')
         .setTint(COLOR.muted)
@@ -292,9 +327,8 @@ export class BaseScene extends Phaser.Scene {
         .setVisible(true);
       row.buyGfx.removeInteractive();
     } else if (affordable) {
-      row.buyGfx
-        .fillStyle(BTN_GREEN_NORMAL).fillRect(COL_BTN_X, btnY, BTN_W, BTN_H)
-        .lineStyle(1, BTN_GREEN_BORDER).strokeRect(COL_BTN_X, btnY, BTN_W, BTN_H);
+      drawDepthBtn(row.buyGfx, COL_BTN_X, btnY, BTN_W, BTN_H,
+        BTN_GREEN_NORMAL, BTN_GREEN_BORDER, BTN_GREEN_HIGHLIGHT, BTN_GREEN_SHADOW);
       row.buyLbl
         .setText('BUY')
         .setTint(0x0d0b14)
@@ -305,9 +339,8 @@ export class BaseScene extends Phaser.Scene {
         Phaser.Geom.Rectangle.Contains,
       );
     } else {
-      row.buyGfx
-        .fillStyle(BTN_DISABLED_BG).fillRect(COL_BTN_X, btnY, BTN_W, BTN_H)
-        .lineStyle(1, BTN_DISABLED_BDR).strokeRect(COL_BTN_X, btnY, BTN_W, BTN_H);
+      drawDepthBtn(row.buyGfx, COL_BTN_X, btnY, BTN_W, BTN_H,
+        BTN_DISABLED_BG, BTN_DISABLED_BDR, BTN_DISABLED_HILITE, BTN_DISABLED_SHADOW);
       row.buyLbl
         .setText('BUY')
         .setTint(COLOR.muted)
@@ -333,138 +366,64 @@ export class BaseScene extends Phaser.Scene {
   }
 
   private refreshEmeralds(): void {
-    const numStr = `${this.save.emeralds}`;
-    const numW   = measureText(numStr);
-    const iconW  = 10; // icon display width + gap
-    const lblW   = measureText('EMERALDS') + 4;
-    const rightX = 476;
+    const numStr  = `${this.save.emeralds}`;
+    const numW    = measureText(numStr);
+    const ICON_W  = 16; // emerald_mini frame is 16×16
+    const GAP     = 3;
+    const lblW    = measureText('EMERALDS') + 4;
+    const rightX  = 476;
 
     this.emeraldNum.setText(numStr).setX(rightX - numW);
-    this.emeraldIcon.setX(rightX - numW - iconW + 1);
-    this.emeraldLbl.setX(rightX - numW - iconW - lblW);
+    this.emeraldIcon.setX(rightX - numW - GAP - ICON_W);
+    this.emeraldLbl.setX(rightX - numW - GAP - ICON_W - GAP - lblW);
   }
 
-  // ── Camp scene ────────────────────────────────────────────────────────────
+  // ── Camp animation ────────────────────────────────────────────────────────
 
-  private drawCampScene(): void {
-    const HORIZON = 156;
-
-    // === Layer 0: sky, hills, stars, moon ===
-    const bgGfx = this.add.graphics(); // depth 0
-    // Clip to camp panel so hills can't bleed into the upgrade bench
-    const campClip = this.add.graphics().fillRect(CAMP_X, 16, CAMP_W, 240);
-    bgGfx.setMask(campClip.createGeometryMask());
-
-    // Sky bands (4 palette colours, top to bottom)
-    bgGfx.fillStyle(0x0d0b14).fillRect(CAMP_X, 16,  CAMP_W, 35);
-    bgGfx.fillStyle(0x1b1630).fillRect(CAMP_X, 51,  CAMP_W, 35);
-    bgGfx.fillStyle(0x2c2347).fillRect(CAMP_X, 86,  CAMP_W, 35);
-    bgGfx.fillStyle(0x43365f).fillRect(CAMP_X, 121, CAMP_W, 35);
-
-    // Stars
-    bgGfx.fillStyle(0x9087a8);
-    const stars = [
-      [305,25],[320,40],[345,22],[370,35],[395,28],[410,50],[435,20],
-      [455,38],[470,30],[330,55],[360,48],[420,42],[448,55],[475,22],
-    ];
-    for (const [sx, sy] of stars) bgGfx.fillRect(sx, sy, 1, 1);
-
-    // Moon
-    bgGfx.fillStyle(0xd4c8a8).fillCircle(462, 30, 9);
-    bgGfx.fillStyle(0x080614).fillCircle(459, 27, 7);
-
-    // Hills — wide ellipses so they look like landscape, not balloons
-    bgGfx.fillStyle(0x0f2e24); // far dark green
-    bgGfx.fillEllipse(CAMP_X + 38,  HORIZON + 18, 120, 72);
-    bgGfx.fillEllipse(CAMP_X + 158, HORIZON + 18, 140, 84);
-    bgGfx.fillStyle(0x1d5c3c); // near lighter green
-    bgGfx.fillEllipse(CAMP_X + 82,  HORIZON + 14,  96, 56);
-    bgGfx.fillEllipse(CAMP_X + 170, HORIZON + 12, 106, 62);
-
-    // === Layer 1: dirt tile ground (covers hill bottoms) ===
-    const tilesWide = Math.ceil(CAMP_W / 16) + 1;
-    for (let c = 0; c < tilesWide; c++) {
-      this.add.image(CAMP_X + c * 16, HORIZON,      'tiles_topsoil', `dirt_${c % 4}`)
-        .setOrigin(0, 0).setDepth(1);
-      this.add.image(CAMP_X + c * 16, HORIZON + 16, 'tiles_topsoil', `dirt_${(c + 2) % 4}`)
-        .setOrigin(0, 0).setDepth(1);
-    }
-
-    // === Layer 2: tent, fire glow, crate (in front of tiles) ===
-    const fgGfx = this.add.graphics().setDepth(2);
-
-    // Tent: left face lit, right face shaded
-    const tentX   = CAMP_X + 26;
-    const TENT_CX = tentX + 24;
-    const PEAK_Y  = 116;
-    fgGfx.fillStyle(0xf28f2e).fillTriangle(tentX,    HORIZON, TENT_CX, HORIZON, TENT_CX, PEAK_Y);
-    fgGfx.fillStyle(0xa3262e).fillTriangle(TENT_CX,  HORIZON, tentX + 48, HORIZON, TENT_CX, PEAK_Y);
-    fgGfx.fillStyle(0x1b1630).fillRect(TENT_CX - 6, 142, 12, 14);
-    fgGfx.fillStyle(0x6b4128).fillRect(TENT_CX,     110,  2,  7);
-
-    // Fire glow on ground — warm light pool
-    const FX = CAMP_X + 96;
-    fgGfx.fillStyle(0xf28f2e); // outer glow
-    fgGfx.fillRect(FX - 8, HORIZON,     4, 2);
-    fgGfx.fillRect(FX + 8, HORIZON,     4, 2);
-    fgGfx.fillRect(FX - 5, HORIZON + 2, 3, 1);
-    fgGfx.fillRect(FX + 6, HORIZON + 2, 3, 1);
-    fgGfx.fillStyle(0xf7c94b); // inner glow
-    fgGfx.fillRect(FX - 4, HORIZON,     4, 2);
-    fgGfx.fillRect(FX + 4, HORIZON,     4, 2);
-    fgGfx.fillRect(FX - 1, HORIZON + 2, 6, 1);
-    // Campfire flame
-    fgGfx.fillStyle(0xf7c94b).fillRect(FX,     HORIZON - 4, 4, 4);
-    fgGfx.fillStyle(0xe0502f).fillRect(FX + 1, HORIZON - 7, 2, 5);
-    fgGfx.fillStyle(0xf28f2e).fillRect(FX + 1, HORIZON - 2, 2, 2);
-
-    // Wooden crate for Static radio
-    const BOX_W   = 26;
-    const BOX_H   = 14;
-    const BOX_RX  = CAMP_X + CAMP_W - 2;
-    const BOX_LX  = BOX_RX - BOX_W;
-    const BOX_TOP = HORIZON - BOX_H;
-    fgGfx.fillStyle(0x8f5a33).fillRect(BOX_LX, BOX_TOP, BOX_W, BOX_H);
-    fgGfx.fillStyle(0xb57a46).fillRect(BOX_LX, BOX_TOP, BOX_W, 2);
-    fgGfx.fillStyle(0x6b4128).fillRect(BOX_RX - 2, BOX_TOP, 2, BOX_H);
-    fgGfx.fillStyle(0x4a2c1e).fillRect(BOX_LX, BOX_TOP + BOX_H - 1, BOX_W, 1);
-    fgGfx.fillStyle(0x6b4128)
-      .fillRect(BOX_LX + Math.floor(BOX_W / 2), BOX_TOP + 2, 1, BOX_H - 3);
-
-    // === Layer 3: grass (behind crew, over tiles) ===
-    const grassGfx = this.add.graphics().setDepth(3);
-    grassGfx.fillStyle(0x2f8f4e);
-    for (let x = CAMP_X; x < CAMP_X + CAMP_W; x += 4) {
-      grassGfx.fillRect(x,     HORIZON - 1, 1, 1);
-      grassGfx.fillRect(x + 2, HORIZON - 2, 1, 2);
-    }
-
-    // === Layer 4: crew sprites (in front of grass) ===
-    this.add.image(CAMP_X + 82,  HORIZON, 'crew', 'tessa').setOrigin(0.5, 1).setDepth(4);
-    this.add.image(CAMP_X + 126, HORIZON, 'crew', 'orin' ).setOrigin(0.5, 1).setDepth(4);
-    this.add.image(BOX_LX + Math.floor(BOX_W / 2), BOX_TOP, 'crew', 'radio_0')
-      .setOrigin(0.5, 1).setDepth(4);
+  private setupCampAnimation(): void {
+    const SCENE_H  = 174 - 16;
+    const INNER_W  = CAMP_W - 8; // 4px margin each side
+    this.campImg = this.add.image(CAMP_X + 4, 16, 'camp_0')
+      .setOrigin(0, 0)
+      .setDepth(0)
+      .setCrop(0, 0, INNER_W, SCENE_H);
+    let f = 0;
+    this.time.addEvent({
+      delay: 125,
+      loop: true,
+      callback: () => {
+        f = (f + 1) % 7;
+        this.campImg.setTexture(`camp_${f}`);
+      },
+    });
   }
 
   // ── Dialogue box ──────────────────────────────────────────────────────────
 
   private drawDialogue(speaker: string, text: string): void {
-    const BOX_X = CAMP_X;
+    const BOX_X = CAMP_X + 4;
+    const BOX_W = CAMP_W - 8;
     const BOX_Y = 174;
     const BOX_H = 56;
-    const gfx   = this.add.graphics();
+    const gfx   = this.add.graphics().setDepth(2);
 
-    // Box bg (same as panel) + border
-    gfx.fillStyle(PANEL_BG).fillRect(BOX_X, BOX_Y, CAMP_W, BOX_H);
-    gfx.lineStyle(1, WOOD_BORDER).strokeRect(BOX_X, BOX_Y, CAMP_W, BOX_H);
+    // Box bg + depth bevel (sunken: dark top+left, lighter bottom+right)
+    gfx
+      .fillStyle(PANEL_BG).fillRect(BOX_X, BOX_Y, BOX_W, BOX_H)
+      .lineStyle(1, 0x0d0b14)
+      .lineBetween(BOX_X, BOX_Y, BOX_X + BOX_W, BOX_Y)
+      .lineBetween(BOX_X, BOX_Y, BOX_X, BOX_Y + BOX_H)
+      .lineStyle(1, 0x2c2347)
+      .lineBetween(BOX_X, BOX_Y + BOX_H, BOX_X + BOX_W, BOX_Y + BOX_H)
+      .lineBetween(BOX_X + BOX_W, BOX_Y, BOX_X + BOX_W, BOX_Y + BOX_H);
 
     // Portrait (inside box)
-    this.add.image(BOX_X + 2, BOX_Y + 2, 'portraits', 'tessa').setOrigin(0, 0).setDepth(1);
+    this.add.image(BOX_X + 2, BOX_Y + 6, 'portraits', 'tessa').setOrigin(0, 0).setDepth(3);
 
-    // Speaker name in amber, no background
-    bitmapLabel(this, BOX_X + 34, BOX_Y + 4, speaker, COLOR.amber).setDepth(1);
+    // Speaker name in amber
+    bitmapLabel(this, BOX_X + 34, BOX_Y + 8, speaker, COLOR.amber).setDepth(3);
 
-    // Wrap text into 3 lines within the text area (~150px wide)
+    // Wrap text into 3 lines within the text area
     const words = text.split(' ');
     const lines: string[] = [];
     let cur = '';
@@ -479,22 +438,22 @@ export class BaseScene extends Phaser.Scene {
     if (cur.trim()) lines.push(cur.trim());
 
     for (let l = 0; l < Math.min(3, lines.length); l++) {
-      bitmapLabel(this, BOX_X + 34, BOX_Y + 15 + l * 10, lines[l], COLOR.body).setDepth(1);
+      bitmapLabel(this, BOX_X + 34, BOX_Y + 19 + l * 10, lines[l], COLOR.body).setDepth(3);
     }
 
     // Continue arrow
-    bitmapLabel(this, BOX_X + CAMP_W - 10, BOX_Y + BOX_H - 10, '>', COLOR.soft).setDepth(1);
+    bitmapLabel(this, BOX_X + BOX_W - 10, BOX_Y + BOX_H - 10, '>', COLOR.soft).setDepth(3);
   }
 
   // ── DIVE button ───────────────────────────────────────────────────────────
 
   private drawDiveButton(): void {
-    const BTN_X = CAMP_X + 2;
+    const BTN_X = CAMP_X + 4;
     const BTN_Y = 232;
-    const BTN_W = CAMP_W - 4;
+    const BTN_W = CAMP_W - 8;
     const BTN_H = 22;
 
-    const gfx = this.add.graphics();
+    const gfx = this.add.graphics().setDepth(2);
     const drawNormal = (): void => {
       gfx.clear()
         .fillStyle(0xf28f2e).fillRect(BTN_X, BTN_Y, BTN_W, BTN_H)
@@ -504,13 +463,24 @@ export class BaseScene extends Phaser.Scene {
 
     const diveStr = 'DIVE';
     const diveX   = BTN_X + Math.floor((BTN_W - measureText(diveStr, 9)) / 2);
-    bitmapLabel(this, diveX, BTN_Y + 8, diveStr, 0x1a0a0a, 9).setDepth(1);
+    bitmapLabel(this, diveX, BTN_Y + 8, diveStr, 0x1a0a0a, 9).setDepth(3);
 
-    // Chomper sprites flanking the label
-    this.add.image(BTN_X + 6, BTN_Y + BTN_H / 2, 'player', 'down_0')
-      .setOrigin(0, 0.5).setDepth(1);
-    this.add.image(BTN_X + BTN_W - 6, BTN_Y + BTN_H / 2, 'player', 'down_0')
-      .setOrigin(1, 0.5).setFlipX(true).setDepth(1);
+    // Chomper sprites flanking the label — 4-frame animation
+    const digL = this.add.image(BTN_X + 6, BTN_Y + BTN_H / 2, 'chomper_down_0')
+      .setOrigin(0, 0.5).setDepth(3);
+    const digR = this.add.image(BTN_X + BTN_W - 6, BTN_Y + BTN_H / 2, 'chomper_down_0')
+      .setOrigin(1, 0.5).setFlipX(true).setDepth(3);
+    let diveFrame = 0;
+    this.time.addEvent({
+      delay: 120,
+      loop: true,
+      callback: () => {
+        diveFrame = (diveFrame + 1) % 4;
+        digL.setTexture(`chomper_down_${diveFrame}`);
+        digR.setTexture(`chomper_down_${diveFrame}`);
+      },
+    });
+
 
     gfx.setInteractive(
       new Phaser.Geom.Rectangle(BTN_X, BTN_Y, BTN_W, BTN_H),

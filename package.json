@@ -8,12 +8,14 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "lint": "eslint src tests",
-    "art": "node tools/art/generate.mjs"
+    "art": "node tools/art/generate.mjs",
+    "music": "node tools/music/compose.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tonejs/midi": "^2.0.28",
     "phaser": "^3.90.0"
   },
   "devDependencies": {
