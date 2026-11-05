@@ -111,7 +111,7 @@ async function loadTrack(trackName: string): Promise<LoadedTrack | null> {
   if (!def) { console.warn(`[music] unknown track: ${trackName}`); return null; }
 
   try {
-    const resp = await fetch(`/assets/music/${def.file}`);
+    const resp = await fetch(`${import.meta.env.BASE_URL}assets/music/${def.file}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const buf  = await resp.arrayBuffer();
     const midi = new Midi(new Uint8Array(buf));
