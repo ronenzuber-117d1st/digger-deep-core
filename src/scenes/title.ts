@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { loadSave, saveSave } from '../storage/index';
 import { createFreshSave } from '../core/save';
 import { FONT_KEY, FONT_SIZE, measureText } from '../render/font';
-import { playTrack, stopTrack, setMusicVolume, setSfxVolume } from '../audio/index';
+import { playTrack, stopTrack, setMusicVolume, setSfxVolume, resumeAudio } from '../audio/index';
 
 type TitleMode = 'title' | 'menu' | 'confirm-new';
 
@@ -329,6 +329,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showMenu(): void {
+    resumeAudio();  // unlock AudioContext on first user gesture (required by browser autoplay policy)
     this.mode = 'menu';
     this.pressText.setVisible(false);
     this.confirmGfx.setVisible(false);
