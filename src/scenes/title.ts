@@ -349,7 +349,10 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private confirmNewDive(): void {
-    saveSave(createFreshSave());
+    const fresh = createFreshSave();
+    // Preserve user settings (volume, shake, font) — only reset game progress
+    const currentSettings = loadSave().settings;
+    saveSave({ ...fresh, settings: currentSettings });
     this.scene.start('Base');
   }
 
