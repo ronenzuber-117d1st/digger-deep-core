@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { loadSave, saveSave } from '../storage/index';
 import { createFreshSave } from '../core/save';
 import { FONT_KEY, FONT_SIZE, measureText } from '../render/font';
-import { playTrack, stopTrack, setMusicVolume, setSfxVolume, resumeAudio } from '../audio/index';
+import { playTrack, stopTrack, setMusicVolume, setSfxVolume, resumeAudio, ensureAudioContext } from '../audio/index';
 
 type TitleMode = 'title' | 'menu' | 'confirm-new';
 
@@ -67,7 +67,6 @@ export class TitleScene extends Phaser.Scene {
     const save = loadSave();
     setMusicVolume(save.settings.musicVol);
     setSfxVolume(save.settings.sfxVol);
-    void playTrack('title');
     this.events.once('shutdown', stopTrack);
 
     this.add.image(240, 136, 'title_a').setDisplaySize(480, 272).setDepth(0);
@@ -329,7 +328,12 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showMenu(): void {
-    resumeAudio();  // unlock AudioContext on first user gesture (required by browser autoplay policy)
+    // Ensure the AudioContext exists and is running before playTrack's async path runs.
+    // On remote origins Chrome keeps a pre-gesture context suspended; creating it here
+    // (inside the keyboard/pointer callback) guarantees it starts in running state.
+    ensureAudioContext();
+    resumeAudio();
+    void playTrack('title');
     this.mode = 'menu';
     this.pressText.setVisible(false);
     this.confirmGfx.setVisible(false);
