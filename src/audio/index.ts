@@ -18,7 +18,12 @@ export {
   getSceneTrack,
   preloadAllTracks,
   ensureAudioContext,
+  getAudioContext,
+  suspendAudio,
+  resumeAudio,
 } from './midi-player';
+
+export { processSfxEvents, setSfxVolume, sfxPlayerDeath } from './sfx';
 
 // Legacy engine still reachable for comparison / procedural mode
 export { playMusic, stopMusic, DIVE_THEME, TITLE_THEME, DEATH_JINGLE } from './music';

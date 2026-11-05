@@ -515,6 +515,14 @@ const THEMES = {
   A: { dirt:{ mid:6, hi:7, lo:5, peb:8, pebLo:4, lit:9, rim:4, shade:5 }, floor:1, fspeck:2, shadow:0 },
   // Crystal Warrens: cool slate with pale crystal flecks; tunnels stay deep indigo
   B: { dirt:{ mid:3, hi:27, lo:2, peb:26, pebLo:2, lit:27, rim:1, shade:2 }, floor:1, fspeck:3, shadow:0 },
+  // Fungal Hollow: deep forest dark, lichen pebbles; tunnels stay deep indigo
+  C: { dirt:{ mid:10, hi:11, lo:10, peb:14, pebLo:11, lit:12, rim:10, shade:10 }, floor:1, fspeck:2, shadow:0 },
+  // Magma Seams: deep maroon, ember pebbles; tunnels stay deep indigo
+  D: { dirt:{ mid:20, hi:21, lo:4, peb:23, pebLo:22, lit:22, rim:4, shade:20 }, floor:1, fspeck:2, shadow:0 },
+  // Frozen Vault: midnight blue, ice pebbles; tunnels use darkest colour
+  E: { dirt:{ mid:15, hi:16, lo:0, peb:19, pebLo:16, lit:17, rim:0, shade:0 }, floor:0, fspeck:1, shadow:0 },
+  // Fossil Bed: sandy warm brown, bone-white pebbles, dark-fleck scatter
+  F: { dirt:{ mid:8, hi:9, lo:7, peb:25, pebLo:26, lit:9, rim:5, shade:7 }, floor:1, fspeck:2, shadow:0 },
 };
 const NOM = { n:0, e:0, s:0, w:0, nw:0, ne:0, sw:0, se:0 };
 
@@ -768,6 +776,42 @@ function run() {
     });
   }
 
+  // ── Fossil Bed tile set ───────────────────────────────────────────────────────
+  {
+    const T = THEMES.F;
+    const COLS = 12, ROWS = 3, CW = 16, CH = 16;
+    const sheet = new Buf(COLS*CW, ROWS*CH, 0);
+    for (let i=0;i<4;i++){
+      const t=new Buf(16,16,0); drawDirt(t,0,0,T,700+i*9); placeTile(sheet,t,i,0,CW,CH);
+    }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,705,false,false); placeTile(sheet,t,4,0,CW,CH); }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,706,true,true);   placeTile(sheet,t,5,0,CW,CH); }
+    for(let i=0;i<3;i++){
+      const t=new Buf(16,16,0); drawBedrock(t,0,0,720+i*7); placeTile(sheet,t,6+i,0,CW,CH);
+    }
+    const E1=[{n:1},{e:1},{s:1},{w:1},{n:1,w:1},{n:1,e:1},{s:1,e:1},{s:1,w:1},{nw:1},{ne:1},{se:1},{sw:1}];
+    E1.forEach((m,i)=>{ const t=new Buf(16,16,0); drawDirt(t,0,0,T,740+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,1,CW,CH); });
+    const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
+    E2.forEach((m,i)=>{ const t=new Buf(16,16,0); drawCorridor(t,0,0,T,777+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH); });
+    writePNG(sheet, join(OUT,'tiles_fossil.png'), false);
+    manifest.sheets.push({
+      name:'tiles_fossil', file:'tiles_fossil.png', frameWidth:16, frameHeight:16,
+      cols:COLS, rows:ROWS,
+      frames: [
+        {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},
+        {name:'floor',col:4,row:0},{name:'floor_shadowed',col:5,row:0},
+        {name:'bedrock_0',col:6,row:0},{name:'bedrock_1',col:7,row:0},{name:'bedrock_2',col:8,row:0},
+        {name:'edge_n',col:0,row:1},{name:'edge_e',col:1,row:1},{name:'edge_s',col:2,row:1},{name:'edge_w',col:3,row:1},
+        {name:'corner_nw',col:4,row:1},{name:'corner_ne',col:5,row:1},{name:'corner_se',col:6,row:1},{name:'corner_sw',col:7,row:1},
+        {name:'concave_nw',col:8,row:1},{name:'concave_ne',col:9,row:1},{name:'concave_se',col:10,row:1},{name:'concave_sw',col:11,row:1},
+        {name:'corridor_ns',col:0,row:2},{name:'corridor_ew',col:1,row:2},
+        {name:'corridor_new',col:2,row:2},{name:'corridor_esw',col:3,row:2},
+        {name:'corridor_nes',col:4,row:2},{name:'corridor_nsw',col:5,row:2},
+        {name:'corridor_all',col:6,row:2},
+      ],
+    });
+  }
+
   // ── Crystal Warrens tile set ─────────────────────────────────────────────────
   // Identical layout to topsoil so TILE_FRAMES indices are interchangeable.
   {
@@ -789,6 +833,114 @@ function run() {
     writePNG(sheet, join(OUT,'tiles_crystal.png'), false);
     manifest.sheets.push({
       name:'tiles_crystal', file:'tiles_crystal.png', frameWidth:16, frameHeight:16,
+      cols:COLS, rows:ROWS,
+      frames: [
+        {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},
+        {name:'floor',col:4,row:0},{name:'floor_shadowed',col:5,row:0},
+        {name:'bedrock_0',col:6,row:0},{name:'bedrock_1',col:7,row:0},{name:'bedrock_2',col:8,row:0},
+        {name:'edge_n',col:0,row:1},{name:'edge_e',col:1,row:1},{name:'edge_s',col:2,row:1},{name:'edge_w',col:3,row:1},
+        {name:'corner_nw',col:4,row:1},{name:'corner_ne',col:5,row:1},{name:'corner_se',col:6,row:1},{name:'corner_sw',col:7,row:1},
+        {name:'concave_nw',col:8,row:1},{name:'concave_ne',col:9,row:1},{name:'concave_se',col:10,row:1},{name:'concave_sw',col:11,row:1},
+        {name:'corridor_ns',col:0,row:2},{name:'corridor_ew',col:1,row:2},
+        {name:'corridor_new',col:2,row:2},{name:'corridor_esw',col:3,row:2},
+        {name:'corridor_nes',col:4,row:2},{name:'corridor_nsw',col:5,row:2},
+        {name:'corridor_all',col:6,row:2},
+      ],
+    });
+  }
+
+  // ── Fungal Hollow tile set ────────────────────────────────────────────────────
+  {
+    const T = THEMES.C;
+    const COLS = 12, ROWS = 3, CW = 16, CH = 16;
+    const sheet = new Buf(COLS*CW, ROWS*CH, 0);
+    for (let i=0;i<4;i++){
+      const t=new Buf(16,16,0); drawDirt(t,0,0,T,400+i*9); placeTile(sheet,t,i,0,CW,CH);
+    }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,405,false,false); placeTile(sheet,t,4,0,CW,CH); }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,406,true,true);   placeTile(sheet,t,5,0,CW,CH); }
+    for(let i=0;i<3;i++){
+      const t=new Buf(16,16,0); drawBedrock(t,0,0,420+i*7); placeTile(sheet,t,6+i,0,CW,CH);
+    }
+    const E1=[{n:1},{e:1},{s:1},{w:1},{n:1,w:1},{n:1,e:1},{s:1,e:1},{s:1,w:1},{nw:1},{ne:1},{se:1},{sw:1}];
+    E1.forEach((m,i)=>{ const t=new Buf(16,16,0); drawDirt(t,0,0,T,440+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,1,CW,CH); });
+    const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
+    E2.forEach((m,i)=>{ const t=new Buf(16,16,0); drawCorridor(t,0,0,T,477+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH); });
+    writePNG(sheet, join(OUT,'tiles_fungal.png'), false);
+    manifest.sheets.push({
+      name:'tiles_fungal', file:'tiles_fungal.png', frameWidth:16, frameHeight:16,
+      cols:COLS, rows:ROWS,
+      frames: [
+        {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},
+        {name:'floor',col:4,row:0},{name:'floor_shadowed',col:5,row:0},
+        {name:'bedrock_0',col:6,row:0},{name:'bedrock_1',col:7,row:0},{name:'bedrock_2',col:8,row:0},
+        {name:'edge_n',col:0,row:1},{name:'edge_e',col:1,row:1},{name:'edge_s',col:2,row:1},{name:'edge_w',col:3,row:1},
+        {name:'corner_nw',col:4,row:1},{name:'corner_ne',col:5,row:1},{name:'corner_se',col:6,row:1},{name:'corner_sw',col:7,row:1},
+        {name:'concave_nw',col:8,row:1},{name:'concave_ne',col:9,row:1},{name:'concave_se',col:10,row:1},{name:'concave_sw',col:11,row:1},
+        {name:'corridor_ns',col:0,row:2},{name:'corridor_ew',col:1,row:2},
+        {name:'corridor_new',col:2,row:2},{name:'corridor_esw',col:3,row:2},
+        {name:'corridor_nes',col:4,row:2},{name:'corridor_nsw',col:5,row:2},
+        {name:'corridor_all',col:6,row:2},
+      ],
+    });
+  }
+
+  // ── Magma Seams tile set ──────────────────────────────────────────────────────
+  {
+    const T = THEMES.D;
+    const COLS = 12, ROWS = 3, CW = 16, CH = 16;
+    const sheet = new Buf(COLS*CW, ROWS*CH, 0);
+    for (let i=0;i<4;i++){
+      const t=new Buf(16,16,0); drawDirt(t,0,0,T,500+i*9); placeTile(sheet,t,i,0,CW,CH);
+    }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,505,false,false); placeTile(sheet,t,4,0,CW,CH); }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,506,true,true);   placeTile(sheet,t,5,0,CW,CH); }
+    for(let i=0;i<3;i++){
+      const t=new Buf(16,16,0); drawBedrock(t,0,0,520+i*7); placeTile(sheet,t,6+i,0,CW,CH);
+    }
+    const E1=[{n:1},{e:1},{s:1},{w:1},{n:1,w:1},{n:1,e:1},{s:1,e:1},{s:1,w:1},{nw:1},{ne:1},{se:1},{sw:1}];
+    E1.forEach((m,i)=>{ const t=new Buf(16,16,0); drawDirt(t,0,0,T,540+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,1,CW,CH); });
+    const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
+    E2.forEach((m,i)=>{ const t=new Buf(16,16,0); drawCorridor(t,0,0,T,577+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH); });
+    writePNG(sheet, join(OUT,'tiles_magma.png'), false);
+    manifest.sheets.push({
+      name:'tiles_magma', file:'tiles_magma.png', frameWidth:16, frameHeight:16,
+      cols:COLS, rows:ROWS,
+      frames: [
+        {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},
+        {name:'floor',col:4,row:0},{name:'floor_shadowed',col:5,row:0},
+        {name:'bedrock_0',col:6,row:0},{name:'bedrock_1',col:7,row:0},{name:'bedrock_2',col:8,row:0},
+        {name:'edge_n',col:0,row:1},{name:'edge_e',col:1,row:1},{name:'edge_s',col:2,row:1},{name:'edge_w',col:3,row:1},
+        {name:'corner_nw',col:4,row:1},{name:'corner_ne',col:5,row:1},{name:'corner_se',col:6,row:1},{name:'corner_sw',col:7,row:1},
+        {name:'concave_nw',col:8,row:1},{name:'concave_ne',col:9,row:1},{name:'concave_se',col:10,row:1},{name:'concave_sw',col:11,row:1},
+        {name:'corridor_ns',col:0,row:2},{name:'corridor_ew',col:1,row:2},
+        {name:'corridor_new',col:2,row:2},{name:'corridor_esw',col:3,row:2},
+        {name:'corridor_nes',col:4,row:2},{name:'corridor_nsw',col:5,row:2},
+        {name:'corridor_all',col:6,row:2},
+      ],
+    });
+  }
+
+  // ── Frozen Vault tile set ─────────────────────────────────────────────────────
+  {
+    const T = THEMES.E;
+    const COLS = 12, ROWS = 3, CW = 16, CH = 16;
+    const sheet = new Buf(COLS*CW, ROWS*CH, 0);
+    for (let i=0;i<4;i++){
+      const t=new Buf(16,16,0); drawDirt(t,0,0,T,600+i*9); placeTile(sheet,t,i,0,CW,CH);
+    }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,605,false,false); placeTile(sheet,t,4,0,CW,CH); }
+    { const t=new Buf(16,16,0); drawFloor(t,0,0,T,606,true,true);   placeTile(sheet,t,5,0,CW,CH); }
+    for(let i=0;i<3;i++){
+      const t=new Buf(16,16,0); drawBedrock(t,0,0,620+i*7); placeTile(sheet,t,6+i,0,CW,CH);
+    }
+    const E1=[{n:1},{e:1},{s:1},{w:1},{n:1,w:1},{n:1,e:1},{s:1,e:1},{s:1,w:1},{nw:1},{ne:1},{se:1},{sw:1}];
+    E1.forEach((m,i)=>{ const t=new Buf(16,16,0); drawDirt(t,0,0,T,640+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,1,CW,CH); });
+    const E2=[{n:1,s:1},{e:1,w:1},{n:1,e:1,w:1},{e:1,s:1,w:1},{n:1,e:1,s:1},{n:1,s:1,w:1},{n:1,e:1,s:1,w:1}];
+    E2.forEach((m,i)=>{ const t=new Buf(16,16,0); drawCorridor(t,0,0,T,677+i,Object.assign({},NOM,m)); placeTile(sheet,t,i,2,CW,CH); });
+    writePNG(sheet, join(OUT,'tiles_frozen.png'), false);
+    manifest.sheets.push({
+      name:'tiles_frozen', file:'tiles_frozen.png', frameWidth:16, frameHeight:16,
       cols:COLS, rows:ROWS,
       frames: [
         {name:'dirt_0',col:0,row:0},{name:'dirt_1',col:1,row:0},{name:'dirt_2',col:2,row:0},{name:'dirt_3',col:3,row:0},

@@ -3,7 +3,7 @@
     {
       "id": "hull",
       "label": "Hull",
-      "description": "+1 max HP",
+      "description": "+1 MAX HP",
       "maxLevel": 3,
       "baseCost": 90,
       "tier": "mid"
@@ -11,7 +11,7 @@
     {
       "id": "fuelTank",
       "label": "Fuel Tank",
-      "description": "+10% starting fuel",
+      "description": "+10% MAX FUEL",
       "maxLevel": 5,
       "baseCost": 60,
       "tier": "cheap"
@@ -19,7 +19,7 @@
     {
       "id": "drillMotor",
       "label": "Drill Motor",
-      "description": "+10% dig speed",
+      "description": "+10% DIG SPEED",
       "maxLevel": 5,
       "baseCost": 60,
       "tier": "cheap"
@@ -27,31 +27,23 @@
     {
       "id": "pulseCore",
       "label": "Pulse Core",
-      "description": "+1 pulse damage",
+      "description": "+1 PULSE DAMAGE",
       "maxLevel": 3,
       "baseCost": 150,
       "tier": "expensive"
     },
     {
-      "id": "prospector",
-      "label": "Prospector",
-      "description": "+10% emerald value",
-      "maxLevel": 5,
-      "baseCost": 90,
-      "tier": "mid"
-    },
-    {
       "id": "salvageContract",
       "label": "Salvage Contract",
-      "description": "Keep +10% on death",
-      "maxLevel": 3,
+      "description": "+15% EMERALDS KEPT\nON DEATH",
+      "maxLevel": 5,
       "baseCost": 150,
       "tier": "expensive"
     },
     {
       "id": "extraPick",
       "label": "Extra Pick",
-      "description": "Free pick per dive",
+      "description": "+1 BONUS PICK/DIVE",
       "maxLevel": 1,
       "baseCost": 150,
       "tier": "expensive"
@@ -59,7 +51,7 @@
     {
       "id": "lanternMount",
       "label": "Lantern Mount",
-      "description": "Lantern on all dives",
+      "description": "LANTERN EACH DIVE",
       "maxLevel": 1,
       "baseCost": 90,
       "tier": "mid"
@@ -67,33 +59,38 @@
   ],
   "run": [
     {
-      "id": "sharperPulse",
-      "label": "Sharper Pulse",
-      "description": "+1 pulse damage",
+      "id": "longPulse",
+      "label": "Long Pulse",
+      "description": "PASSIVE. +1 PULSE RANGE.",
       "rarity": 1,
       "icon": "pulse",
-      "tag": "COMMON"
+      "tag": "COMMON",
+      "maxPicks": 2,
+      "requiresPulse": true
     },
     {
       "id": "rapidPulse",
       "label": "Rapid Pulse",
-      "description": "Pulse cooldown -20%",
+      "description": "PASSIVE. PULSE FIRES 20% FASTER.",
       "rarity": 1,
       "icon": "pulse",
-      "tag": "COMMON"
+      "tag": "COMMON",
+      "requiresPulse": true
     },
     {
       "id": "widePulse",
       "label": "Wide Pulse",
-      "description": "Pulse hits a 3-wide line",
+      "description": "1ST: FIRES BACK. 2ND: FIRES ALL 4 DIRS.",
       "rarity": 2,
       "icon": "pulse",
-      "tag": "RARE"
+      "tag": "RARE",
+      "maxPicks": 2,
+      "requiresPulse": true
     },
     {
       "id": "magnetCoil",
       "label": "Magnet Coil",
-      "description": "Emeralds within 3 tiles drift toward your rig",
+      "description": "PASSIVE. GEMS WITHIN 3 TILES DRIFT TOWARD YOU.",
       "rarity": 2,
       "icon": "magnet",
       "tag": "RARE"
@@ -101,7 +98,7 @@
     {
       "id": "shield",
       "label": "Shield",
-      "description": "Absorbs 1 hit, recharges each floor",
+      "description": "PASSIVE. ABSORBS 1 HIT, RECHARGES EACH FLOOR.",
       "rarity": 2,
       "icon": "hull",
       "tag": "RARE"
@@ -109,7 +106,7 @@
     {
       "id": "tileBomb",
       "label": "Tile Bomb",
-      "description": "Press Space to place a bomb, 1 per floor, clears a 3x3 area",
+      "description": "PRESS SPACE: DIG 3X3, DESTROY ALL MONSTERS. ONCE PER FLOOR.",
       "rarity": 2,
       "icon": "drill",
       "tag": "RARE"
@@ -117,7 +114,7 @@
     {
       "id": "efficientEngine",
       "label": "Efficient Engine",
-      "description": "Fuel drains 25% slower",
+      "description": "PASSIVE. FUEL DRAINS 25% SLOWER.",
       "rarity": 1,
       "icon": "fuel",
       "tag": "COMMON"
@@ -125,7 +122,7 @@
     {
       "id": "goldRush",
       "label": "Gold Rush",
-      "description": "Nuggets are worth x2",
+      "description": "PASSIVE. GEMS WORTH 2 EACH.",
       "rarity": 1,
       "icon": "prospector",
       "tag": "COMMON"
@@ -133,7 +130,7 @@
     {
       "id": "quickDrill",
       "label": "Quick Drill",
-      "description": "+25% dig speed",
+      "description": "PASSIVE. +25% DIG SPEED.",
       "rarity": 1,
       "icon": "drill",
       "tag": "COMMON"
@@ -141,7 +138,7 @@
     {
       "id": "lantern",
       "label": "Lantern",
-      "description": "Reveals nests and bags within 6 tiles",
+      "description": "PASSIVE. IN DEEP FLOORS: SEE 6 TILES.\nGLOWS ON NEARBY BAGS AND NESTS.",
       "rarity": 2,
       "icon": "lantern",
       "tag": "RARE"
@@ -149,7 +146,7 @@
     {
       "id": "heavyBags",
       "label": "Heavy Bags",
-      "description": "Bags deal +50% damage and crush through 1 extra tile",
+      "description": "PASSIVE. BAGS HIT HARDER AND SMASH DIRT ON IMPACT.",
       "rarity": 2,
       "icon": "salvage",
       "tag": "RARE"
@@ -157,7 +154,7 @@
     {
       "id": "secondWind",
       "label": "Second Wind",
-      "description": "Revive once at 1 HP",
+      "description": "PASSIVE. REVIVE ONCE AT 1 HP PER RUN.",
       "rarity": 3,
       "icon": "hull",
       "tag": "RELIC"
@@ -165,7 +162,7 @@
     {
       "id": "spareFuel",
       "label": "Spare Fuel",
-      "description": "+30% fuel now; canisters give 10% more this run",
+      "description": "PASSIVE. +30% FUEL NOW. CANISTERS GIVE 10% MORE.",
       "rarity": 1,
       "icon": "fuel",
       "tag": "COMMON"
@@ -173,7 +170,7 @@
     {
       "id": "echoPing",
       "label": "Echo Ping",
-      "description": "Key E reveals monsters through dirt for 4s, once per floor",
+      "description": "PRESS E: REVEALS ALL MONSTERS FOR 4 SECONDS, ONCE PER FLOOR.",
       "rarity": 3,
       "icon": "ping",
       "tag": "RELIC"

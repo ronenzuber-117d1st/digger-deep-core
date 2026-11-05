@@ -1,24 +1,33 @@
 import Phaser from 'phaser';
 import manifest from '../../public/assets/sprites/manifest.json';
 import { preloadAllTracks } from '../audio/index';
+import { installFont } from '../render/bitmap-font';
+import { loadSave } from '../storage/index';
 
 type SheetEntry = (typeof manifest.sheets)[number];
 type FrameEntry = SheetEntry['frames'][number];
 
 export class BootScene extends Phaser.Scene {
+  private fontStyle: 'pixel' | 'smooth' = 'pixel';
+
   constructor() {
     super({ key: 'Boot' });
   }
 
   preload(): void {
+    this.fontStyle = loadSave().settings.font ?? 'pixel';
+
     for (const sheet of manifest.sheets) {
-      if (sheet.name === 'font') continue; // loaded as bitmapFont below
+      if (sheet.name === 'font') continue;
       this.load.spritesheet(sheet.name, `assets/sprites/${sheet.file}`, {
         frameWidth: sheet.frameWidth,
         frameHeight: sheet.frameHeight,
       });
     }
+
+    // Always load the pixel font as a baseline. Smooth mode replaces it in create().
     this.load.bitmapFont('coalface', 'assets/sprites/font.png', 'assets/sprites/font.xml');
+
     this.load.image('title_a', 'assets/title/title_a.png');
     for (let i = 0; i < 7; i++) {
       this.load.image(`camp_${i}`, `assets/camp/camp_${i}.png`);
@@ -53,8 +62,20 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     registerNamedFrames(this);
-    void preloadAllTracks();  // fetch + parse all .mid files before first user gesture
-    this.scene.start('Title');
+    void preloadAllTracks();
+
+    if (this.fontStyle !== 'smooth') {
+      // Original bitmap font already loaded by Phaser's asset loader in preload()
+      this.scene.start('Title');
+      return;
+    }
+
+    // Smooth mode: wait for the CSS @font-face 'GameFontSmooth' (Nunito) to load,
+    // then build the atlas. Falls back to system Arial if the TTF isn't served.
+    void document.fonts.load(`${7 * 4}px GameFontSmooth`)
+      .then(() => { installFont(this, 'smooth'); })
+      .catch((err: unknown) => { console.error('Smooth font failed:', err); })
+      .finally(() => { this.scene.start('Title'); });
   }
 }
 

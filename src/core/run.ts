@@ -12,4 +12,12 @@ export interface RunState {
   nextId: number;
   phase: RunPhase;
   kills: number;
+  killsByType: Record<string, number>;
+  runUpgrades: string[];
+  secondWindUsed: boolean;
+  magnetTimer: number;
+  fuelStarveTimer: number;
+  echoPingAvailable: boolean;
+  echoPingTimer: number;
+  tileBombAvailable: boolean;
 }

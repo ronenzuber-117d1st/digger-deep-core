@@ -10,22 +10,17 @@ export function upgradeCost(tier: UpgradeTier, currentLevel: number): number {
 }
 
 export function deathPayout(emeraldsCarried: number, salvageLevel: number): number {
-  const keep = tuning.economy.deathKeepFraction + salvageLevel * 0.1;
-  return Math.floor(emeraldsCarried * Math.min(keep, 1));
+  const keepPct = Math.min(salvageLevel * 15, 100);
+  return Math.floor(emeraldsCarried * keepPct / 100);
 }
 
 export function extractionPayout(emeraldsCarried: number): number {
   return emeraldsCarried;
 }
 
-export function floorEmeraldValue(floor: number, prospectorLevel: number): number {
-  const depthMult = 1 + (floor - 1) * tuning.floor.valueBasePerFloor;
-  const prospectorMult = 1 + prospectorLevel * 0.1;
-  return depthMult * prospectorMult;
-}
 
 export function isExtractionFloor(floor: number): boolean {
-  return (tuning.floor.extractionFloors as number[]).includes(floor);
+  return floor > 0 && floor % 5 === 0;
 }
 
 export function getUpgradeDef(id: string) {

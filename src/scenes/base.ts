@@ -5,7 +5,7 @@ import { upgradeCost, UpgradeTier } from '../core/economy';
 import upgradesDef from '../data/upgrades.json';
 import tuning from '../data/tuning.json';
 import { bitmapLabel, COLOR, measureText } from '../render/font';
-import { playTrack, stopTrack } from '../audio/index';
+import { playTrack, stopTrack, setMusicVolume, setSfxVolume } from '../audio/index';
 
 const UPGRADE_IDS = upgradesDef.permanent.map((u) => u.id as PermanentUpgradeId);
 
@@ -114,6 +114,10 @@ export class BaseScene extends Phaser.Scene {
 
   create(): void {
     this.upgradeRows.clear();
+    this.confirmVisible = false;
+    this.confirmSelected = 0;
+    setMusicVolume(this.save.settings.musicVol);
+    setSfxVolume(this.save.settings.sfxVol);
     void playTrack('base');
     this.events.once('shutdown', stopTrack);
 

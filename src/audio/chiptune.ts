@@ -1,18 +1,19 @@
 /**
- * NES/Game-Boy-style voice engine built on Web Audio API.
+ * NES/SNES-style voice engine built on Web Audio API.
  *
  * Voices:
- *   pulse1   – lead, Pulse wave (selectable duty), delay + left pan
- *   pulse2   – harmony, Pulse wave, right pan
+ *   pulse1   – lead, selectable waveform, delay + left pan
+ *   pulse2   – harmony, selectable waveform, right pan
  *   triangle – bass, soft triangle
  *   noise    – drums, filtered white noise
  *
- * Mix chain: voiceGain → stereoPanner → [delay] → masterBus → lowPass → limiter → destination
+ * Waveforms (pulse voices only): pulse | saw | flute | organ
+ * Mix chain: voiceGain → panner → [delay] → masterGain → [reverb] → lowPass → limiter → out
  */
 
 export type VoiceName = 'pulse1' | 'pulse2' | 'triangle' | 'noise';
-
 export type DutyCycle = 0.125 | 0.25 | 0.5;
+export type Waveform  = 'pulse' | 'saw' | 'flute' | 'organ';
 
 export interface ADSRConfig {
   attack:  number;   // seconds
@@ -28,33 +29,36 @@ export interface VibratoConfig {
 }
 
 export interface VoiceConfig {
-  duty?:   DutyCycle;      // pulse voices only
-  adsr:    ADSRConfig;
-  vibrato?: VibratoConfig;
-  volume:  number;         // 0–1
+  duty?:     DutyCycle;    // pulse waveform only
+  waveform?: Waveform;     // override waveform ('pulse' default)
+  adsr:      ADSRConfig;
+  vibrato?:  VibratoConfig;
+  volume:    number;       // 0–1
 }
 
 export interface MixConfig {
   delay: {
-    time:     number;  // seconds  (150–250 ms recommended)
-    feedback: number;  // 0–1
-    level:    number;  // wet mix 0–1
+    time:     number;
+    feedback: number;
+    level:    number;
     enabled:  boolean;
   };
-  panning:       { p1: number; p2: number };  // –1..1
-  masterLowPass: number;  // Hz
-  masterVolume:  number;  // 0–1
+  reverb?: {
+    wet:   number;  // 0–1 send level
+    decay: number;  // tail length in seconds (0.3–2.5)
+  };
+  panning:       { p1: number; p2: number };
+  masterLowPass: number;
+  masterVolume:  number;
 }
 
-// ── Waveform cache ────────────────────────────────────────────────────────────
+// ── Waveform cache ─────────────────────────────────────────────────────────────
 
-const pulseWaveCache = new Map<string, PeriodicWave>();
+const waveCache = new Map<string, PeriodicWave>();
 
-/** Build a pulse PeriodicWave for the given duty cycle (Fourier series). */
 function getPulseWave(ctx: AudioContext, duty: DutyCycle): PeriodicWave {
-  const key = `${ctx.sampleRate}-${duty}`;
-  if (pulseWaveCache.has(key)) return pulseWaveCache.get(key)!;
-
+  const key = `${ctx.sampleRate}-pulse-${duty}`;
+  if (waveCache.has(key)) return waveCache.get(key)!;
   const N    = 64;
   const real = new Float32Array(N + 1);
   const imag = new Float32Array(N + 1);
@@ -64,35 +68,87 @@ function getPulseWave(ctx: AudioContext, duty: DutyCycle): PeriodicWave {
     imag[n] = (2 / (n * Math.PI)) * (1 - Math.cos(a));
   }
   const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
-  pulseWaveCache.set(key, wave);
+  waveCache.set(key, wave);
   return wave;
 }
 
-// ── Noise buffer ──────────────────────────────────────────────────────────────
+/** Sawtooth: rich harmonics, brass/string character. */
+function getSawWave(ctx: AudioContext): PeriodicWave {
+  const key = `${ctx.sampleRate}-saw`;
+  if (waveCache.has(key)) return waveCache.get(key)!;
+  const N    = 48;
+  const real = new Float32Array(N + 1);
+  const imag = new Float32Array(N + 1);
+  for (let n = 1; n <= N; n++) imag[n] = (n % 2 === 0 ? 1 : -1) / n;
+  const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  waveCache.set(key, wave);
+  return wave;
+}
 
-const NOISE_SECONDS = 1.0;
+/** Flute: mainly fundamental + gentle upper partials, soft and breathy. */
+function getFluteWave(ctx: AudioContext): PeriodicWave {
+  const key = `${ctx.sampleRate}-flute`;
+  if (waveCache.has(key)) return waveCache.get(key)!;
+  const real = new Float32Array(6);
+  const imag = new Float32Array(6);
+  imag[1] = 1.00;
+  imag[2] = 0.26;
+  imag[3] = 0.08;
+  imag[4] = 0.02;
+  imag[5] = 0.01;
+  const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  waveCache.set(key, wave);
+  return wave;
+}
+
+/** Organ: stacked octave/5th partials (drawbar organ character). */
+function getOrganWave(ctx: AudioContext): PeriodicWave {
+  const key = `${ctx.sampleRate}-organ`;
+  if (waveCache.has(key)) return waveCache.get(key)!;
+  const real = new Float32Array(9);
+  const imag = new Float32Array(9);
+  imag[1] = 1.00;   // 8' (fundamental)
+  imag[2] = 0.50;   // 4' (octave)
+  imag[3] = 0.30;   // 2⅔' (12th)
+  imag[4] = 0.25;   // 2' (double octave)
+  imag[6] = 0.10;   // 1⅓' (19th)
+  imag[8] = 0.08;   // 1' (triple octave)
+  const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  waveCache.set(key, wave);
+  return wave;
+}
+
+function getWave(ctx: AudioContext, cfg: VoiceConfig): PeriodicWave {
+  const wf = cfg.waveform ?? 'pulse';
+  if (wf === 'saw')   return getSawWave(ctx);
+  if (wf === 'flute') return getFluteWave(ctx);
+  if (wf === 'organ') return getOrganWave(ctx);
+  return getPulseWave(ctx, (cfg.duty ?? 0.25) as DutyCycle);
+}
+
+// ── Noise buffer ───────────────────────────────────────────────────────────────
+
 let cachedNoiseBuffer: AudioBuffer | null = null;
 
 function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
   if (cachedNoiseBuffer && cachedNoiseBuffer.sampleRate === ctx.sampleRate) {
     return cachedNoiseBuffer;
   }
-  const len = Math.ceil(ctx.sampleRate * NOISE_SECONDS);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const len  = Math.ceil(ctx.sampleRate * 1.0);
+  const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
   const data = buf.getChannelData(0);
-  // Deterministic-ish pink-ish noise (not seeded, that's fine for drums)
   for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
   cachedNoiseBuffer = buf;
   return buf;
 }
 
-// ── MIDI → Hz ─────────────────────────────────────────────────────────────────
+// ── MIDI → Hz ──────────────────────────────────────────────────────────────────
 
 function midiToHz(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
-// ── Main chiptune class ───────────────────────────────────────────────────────
+// ── Main chiptune class ────────────────────────────────────────────────────────
 
 export class NESChiptune {
   private ctx: AudioContext;
@@ -102,33 +158,37 @@ export class NESChiptune {
   private masterLowPass: BiquadFilterNode;
   private masterLimiter: DynamicsCompressorNode;
 
-  // Per-voice buses (all feed masterGain)
+  // Reverb (parallel send after masterGain)
+  private reverbConvolver: ConvolverNode;
+  private reverbWet:       GainNode;
+  private roomIRCache = new Map<number, AudioBuffer>();
+
+  // Per-voice buses
   private p1Bus:    GainNode;
   private p2Bus:    GainNode;
   private triBus:   GainNode;
   private noiseBus: GainNode;
 
   // Stereo panners
-  private p1Pan:  StereoPannerNode;
-  private p2Pan:  StereoPannerNode;
+  private p1Pan: StereoPannerNode;
+  private p2Pan: StereoPannerNode;
 
   // Delay (pulse1 only)
   private delayNode:     DelayNode;
   private delayFeedback: GainNode;
   private delayWet:      GainNode;
 
-  // Current voice configs (for scheduling)
   voiceConfigs: Record<VoiceName, VoiceConfig> = {
-    pulse1:   { duty: 0.25, adsr: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.05 }, volume: 0.7 },
-    pulse2:   { duty: 0.25, adsr: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.05 }, volume: 0.4 },
-    triangle: {             adsr: { attack: 0.005, decay: 0.04, sustain: 0.9, release: 0.03 }, volume: 0.55 },
-    noise:    {             adsr: { attack: 0.001, decay: 0.06, sustain: 0.0, release: 0.02 }, volume: 0.28 },
+    pulse1:   { waveform: 'pulse', duty: 0.25, adsr: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.05 }, volume: 0.7 },
+    pulse2:   { waveform: 'pulse', duty: 0.25, adsr: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.05 }, volume: 0.4 },
+    triangle: {                                adsr: { attack: 0.005, decay: 0.04, sustain: 0.9, release: 0.03 }, volume: 0.55 },
+    noise:    {                                adsr: { attack: 0.001, decay: 0.06, sustain: 0.0, release: 0.02 }, volume: 0.28 },
   };
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
 
-    // ── Limiter ───────────────────────────────────────────────────────────────
+    // ── Limiter ────────────────────────────────────────────────────────────────
     this.masterLimiter = ctx.createDynamicsCompressor();
     this.masterLimiter.threshold.value = -2;
     this.masterLimiter.knee.value      = 3;
@@ -137,18 +197,29 @@ export class NESChiptune {
     this.masterLimiter.release.value   = 0.08;
     this.masterLimiter.connect(ctx.destination);
 
-    // ── Low-pass ──────────────────────────────────────────────────────────────
+    // ── Low-pass ───────────────────────────────────────────────────────────────
     this.masterLowPass = ctx.createBiquadFilter();
     this.masterLowPass.type            = 'lowpass';
     this.masterLowPass.frequency.value = 12000;
     this.masterLowPass.connect(this.masterLimiter);
 
-    // ── Master gain ───────────────────────────────────────────────────────────
+    // ── Master gain ────────────────────────────────────────────────────────────
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = 0.5;
-    this.masterGain.connect(this.masterLowPass);
+    this.masterGain.connect(this.masterLowPass);  // dry path
 
-    // ── Delay (pulse1 only) ───────────────────────────────────────────────────
+    // ── Reverb (parallel send from masterGain → lowPass) ──────────────────────
+    this.reverbConvolver = ctx.createConvolver();
+    this.reverbWet       = ctx.createGain();
+    this.reverbWet.gain.value = 0;
+
+    this.masterGain.connect(this.reverbConvolver);
+    this.reverbConvolver.connect(this.reverbWet);
+    this.reverbWet.connect(this.masterLowPass);
+
+    this.reverbConvolver.buffer = this.buildRoomIR(0.8);
+
+    // ── Delay (pulse1 only) ────────────────────────────────────────────────────
     this.delayNode     = ctx.createDelay(0.5);
     this.delayFeedback = ctx.createGain();
     this.delayWet      = ctx.createGain();
@@ -161,29 +232,49 @@ export class NESChiptune {
     this.delayNode.connect(this.delayWet);
     this.delayWet.connect(this.masterGain);
 
-    // ── Per-voice buses ───────────────────────────────────────────────────────
+    // ── Per-voice buses ────────────────────────────────────────────────────────
     this.p1Bus    = ctx.createGain();
     this.p2Bus    = ctx.createGain();
     this.triBus   = ctx.createGain();
     this.noiseBus = ctx.createGain();
 
-    this.p1Pan  = ctx.createStereoPanner();
-    this.p2Pan  = ctx.createStereoPanner();
-    this.p1Pan.pan.value  = -0.3;
-    this.p2Pan.pan.value  =  0.3;
+    this.p1Pan = ctx.createStereoPanner();
+    this.p2Pan = ctx.createStereoPanner();
+    this.p1Pan.pan.value = -0.3;
+    this.p2Pan.pan.value =  0.3;
 
-    // pulse1 → p1Pan → masterGain + delayNode
     this.p1Bus.connect(this.p1Pan);
     this.p1Pan.connect(this.masterGain);
     this.p1Pan.connect(this.delayNode);
 
-    // pulse2 → p2Pan → masterGain
     this.p2Bus.connect(this.p2Pan);
     this.p2Pan.connect(this.masterGain);
 
-    // tri + noise → masterGain directly (centred)
     this.triBus.connect(this.masterGain);
     this.noiseBus.connect(this.masterGain);
+  }
+
+  // ── Room impulse response ──────────────────────────────────────────────────
+
+  private buildRoomIR(decaySec: number): AudioBuffer {
+    const key = Math.round(decaySec * 10) / 10;
+    const cached = this.roomIRCache.get(key);
+    if (cached) return cached;
+
+    const sr  = this.ctx.sampleRate;
+    const len = Math.ceil(sr * key);
+    const buf = this.ctx.createBuffer(2, len, sr);
+    const pd  = Math.floor(sr * 0.012);  // 12 ms pre-delay
+
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = pd; i < len; i++) {
+        const t = (i - pd) / (len - pd);
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-3.5 * t);
+      }
+    }
+    this.roomIRCache.set(key, buf);
+    return buf;
   }
 
   // ── Configuration ──────────────────────────────────────────────────────────
@@ -206,10 +297,20 @@ export class NESChiptune {
     this.p2Bus.gain.setTargetAtTime(voices.pulse2.volume, now, 0.05);
     this.triBus.gain.setTargetAtTime(voices.triangle.volume, now, 0.05);
     this.noiseBus.gain.setTargetAtTime(voices.noise.volume, now, 0.05);
+
+    // Reverb
+    if (mix.reverb && mix.reverb.wet > 0) {
+      this.reverbWet.gain.setTargetAtTime(mix.reverb.wet, now, 0.15);
+      this.reverbConvolver.buffer = this.buildRoomIR(mix.reverb.decay);
+    } else {
+      this.reverbWet.gain.setTargetAtTime(0, now, 0.15);
+    }
   }
 
   setMasterVolume(v: number): void {
-    this.masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    const now = this.ctx.currentTime;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setTargetAtTime(v, now, 0.05);
   }
 
   setDelayLevel(level: number): void {
@@ -217,15 +318,14 @@ export class NESChiptune {
   }
 
   setDelayEnabled(on: boolean): void {
-    this.delayWet.gain.setTargetAtTime(on ? this.delayFeedback.gain.value : 0, this.ctx.currentTime, 0.05);
+    this.delayWet.gain.setTargetAtTime(
+      on ? this.delayFeedback.gain.value : 0,
+      this.ctx.currentTime, 0.05,
+    );
   }
 
   // ── Note scheduling ────────────────────────────────────────────────────────
 
-  /**
-   * Schedule a single note on pulse1 or pulse2.
-   * Creates a fresh OscillatorNode per note (GC'd after stop).
-   */
   schedulePulseNote(
     voice: 'pulse1' | 'pulse2',
     midiNote: number,
@@ -235,41 +335,28 @@ export class NESChiptune {
   ): void {
     try {
       const cfg  = this.voiceConfigs[voice];
-      const duty = (cfg.duty ?? 0.25) as DutyCycle;
-      const adsr = cfg.adsr;
       const bus  = voice === 'pulse1' ? this.p1Bus : this.p2Bus;
       const hz   = midiToHz(midiNote);
 
       const osc  = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.setPeriodicWave(getPulseWave(this.ctx, duty));
+      osc.setPeriodicWave(getWave(this.ctx, cfg));
       osc.frequency.setValueAtTime(hz, t0);
       osc.connect(gain);
       gain.connect(bus);
 
-      this.applyADSR(gain.gain, t0, dur, adsr, velocity);
+      this.applyADSR(gain.gain, t0, dur, cfg.adsr, velocity);
 
-      if (cfg.vibrato) {
-        this.applyVibrato(osc.frequency, hz, t0, dur, cfg.vibrato);
-      }
+      if (cfg.vibrato) this.applyVibrato(osc.frequency, hz, t0, dur, cfg.vibrato);
 
-      const stopTime = t0 + dur + adsr.release + 0.05;
+      const stopTime = t0 + dur + cfg.adsr.release + 0.05;
       osc.start(t0);
       osc.stop(stopTime);
-      // Disconnect after stop to free resources
       osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch {} };
     } catch {}
   }
 
-  /**
-   * Schedule a single note on the triangle (bass) voice.
-   */
-  scheduleTriangleNote(
-    midiNote: number,
-    t0: number,
-    dur: number,
-    velocity: number,
-  ): void {
+  scheduleTriangleNote(midiNote: number, t0: number, dur: number, velocity: number): void {
     try {
       const adsr = this.voiceConfigs.triangle.adsr;
       const hz   = midiToHz(midiNote);
@@ -290,10 +377,6 @@ export class NESChiptune {
     } catch {}
   }
 
-  /**
-   * Schedule a drum hit.  midiNote maps to GM drum layout.
-   * 36 = kick, 38 = snare, 42 = closed hat, 46 = open hat.
-   */
   scheduleDrum(midiNote: number, t0: number, velocity: number): void {
     try {
       switch (midiNote) {
@@ -322,19 +405,16 @@ export class NESChiptune {
   }
 
   private scheduleSnare(t0: number, vel: number): void {
-    const noiseCtx = this.ctx;
-    const src    = noiseCtx.createBufferSource();
-    const filter = noiseCtx.createBiquadFilter();
-    const gain   = noiseCtx.createGain();
-
-    src.buffer = getNoiseBuffer(noiseCtx);
+    const src    = this.ctx.createBufferSource();
+    const filter = this.ctx.createBiquadFilter();
+    const gain   = this.ctx.createGain();
+    src.buffer = getNoiseBuffer(this.ctx);
     src.loop   = true;
     filter.type            = 'bandpass';
     filter.frequency.value = 2800;
     filter.Q.value         = 0.8;
     gain.gain.setValueAtTime(vel * 0.70, t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.10);
-
     src.connect(filter);
     filter.connect(gain);
     gain.connect(this.noiseBus);
@@ -347,17 +427,14 @@ export class NESChiptune {
     const src    = this.ctx.createBufferSource();
     const filter = this.ctx.createBiquadFilter();
     const gain   = this.ctx.createGain();
-
     src.buffer = getNoiseBuffer(this.ctx);
     src.loop   = true;
     filter.type            = 'highpass';
     filter.frequency.value = 6500;
     filter.Q.value         = 1.5;
-
     const decay = open ? 0.12 : 0.030;
     gain.gain.setValueAtTime(vel * (open ? 0.55 : 0.40), t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + decay);
-
     src.connect(filter);
     filter.connect(gain);
     gain.connect(this.noiseBus);
@@ -366,7 +443,7 @@ export class NESChiptune {
     src.onended = () => { try { src.disconnect(); filter.disconnect(); gain.disconnect(); } catch {} };
   }
 
-  // ── Envelope ──────────────────────────────────────────────────────────────
+  // ── Envelope ───────────────────────────────────────────────────────────────
 
   private applyADSR(
     param: AudioParam,
@@ -389,7 +466,7 @@ export class NESChiptune {
     param.exponentialRampToValueAtTime(0.0001, tR + adsr.release);
   }
 
-  // ── Vibrato ───────────────────────────────────────────────────────────────
+  // ── Vibrato ────────────────────────────────────────────────────────────────
 
   private applyVibrato(
     freqParam: AudioParam,
@@ -402,7 +479,7 @@ export class NESChiptune {
 
     const lfo     = this.ctx.createOscillator();
     const lfoGain = this.ctx.createGain();
-    lfo.frequency.value  = vib.rate;
+    lfo.frequency.value = vib.rate;
     lfoGain.gain.setValueAtTime(0, t0);
     lfoGain.gain.setValueAtTime(0, t0 + vib.delay);
     lfoGain.gain.linearRampToValueAtTime(vib.depth, t0 + vib.delay + 0.15);
@@ -414,25 +491,25 @@ export class NESChiptune {
     lfo.start(t0);
     lfo.stop(t0 + dur + 0.05);
     lfo.onended = () => { try { lfo.disconnect(); lfoGain.disconnect(); } catch {} };
-    void baseHz; // used implicitly via freqParam connection
+    void baseHz;
   }
 
-  // ── Fade helpers ──────────────────────────────────────────────────────────
+  // ── Fades ──────────────────────────────────────────────────────────────────
 
-  /** Fade master volume to 0 over `seconds`. */
   fadeOut(seconds: number): void {
     const now = this.ctx.currentTime;
-    this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+    const cur = this.masterGain.gain.value;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(cur, now);
     this.masterGain.gain.linearRampToValueAtTime(0, now + seconds);
   }
 
   fadeIn(targetVolume: number, seconds: number): void {
     const now = this.ctx.currentTime;
+    this.masterGain.gain.cancelScheduledValues(now);
     this.masterGain.gain.setValueAtTime(0, now);
-    this.masterGain.gain.linearRampToValueAtTime(targetVolume, now + seconds);
+    this.masterGain.gain.linearRampToValueAtTime(targetVolume, now + Math.max(seconds, 0.01));
   }
-
-  // ── Cleanup ───────────────────────────────────────────────────────────────
 
   destroy(): void {
     try {

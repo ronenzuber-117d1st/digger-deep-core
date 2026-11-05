@@ -436,8 +436,608 @@
       ]
     },
     {
+      "name": "tiles_fossil",
+      "file": "tiles_fossil.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "cols": 12,
+      "rows": 3,
+      "frames": [
+        {
+          "name": "dirt_0",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "dirt_1",
+          "col": 1,
+          "row": 0
+        },
+        {
+          "name": "dirt_2",
+          "col": 2,
+          "row": 0
+        },
+        {
+          "name": "dirt_3",
+          "col": 3,
+          "row": 0
+        },
+        {
+          "name": "floor",
+          "col": 4,
+          "row": 0
+        },
+        {
+          "name": "floor_shadowed",
+          "col": 5,
+          "row": 0
+        },
+        {
+          "name": "bedrock_0",
+          "col": 6,
+          "row": 0
+        },
+        {
+          "name": "bedrock_1",
+          "col": 7,
+          "row": 0
+        },
+        {
+          "name": "bedrock_2",
+          "col": 8,
+          "row": 0
+        },
+        {
+          "name": "edge_n",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "edge_e",
+          "col": 1,
+          "row": 1
+        },
+        {
+          "name": "edge_s",
+          "col": 2,
+          "row": 1
+        },
+        {
+          "name": "edge_w",
+          "col": 3,
+          "row": 1
+        },
+        {
+          "name": "corner_nw",
+          "col": 4,
+          "row": 1
+        },
+        {
+          "name": "corner_ne",
+          "col": 5,
+          "row": 1
+        },
+        {
+          "name": "corner_se",
+          "col": 6,
+          "row": 1
+        },
+        {
+          "name": "corner_sw",
+          "col": 7,
+          "row": 1
+        },
+        {
+          "name": "concave_nw",
+          "col": 8,
+          "row": 1
+        },
+        {
+          "name": "concave_ne",
+          "col": 9,
+          "row": 1
+        },
+        {
+          "name": "concave_se",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "concave_sw",
+          "col": 11,
+          "row": 1
+        },
+        {
+          "name": "corridor_ns",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "corridor_ew",
+          "col": 1,
+          "row": 2
+        },
+        {
+          "name": "corridor_new",
+          "col": 2,
+          "row": 2
+        },
+        {
+          "name": "corridor_esw",
+          "col": 3,
+          "row": 2
+        },
+        {
+          "name": "corridor_nes",
+          "col": 4,
+          "row": 2
+        },
+        {
+          "name": "corridor_nsw",
+          "col": 5,
+          "row": 2
+        },
+        {
+          "name": "corridor_all",
+          "col": 6,
+          "row": 2
+        }
+      ]
+    },
+    {
       "name": "tiles_crystal",
       "file": "tiles_crystal.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "cols": 12,
+      "rows": 3,
+      "frames": [
+        {
+          "name": "dirt_0",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "dirt_1",
+          "col": 1,
+          "row": 0
+        },
+        {
+          "name": "dirt_2",
+          "col": 2,
+          "row": 0
+        },
+        {
+          "name": "dirt_3",
+          "col": 3,
+          "row": 0
+        },
+        {
+          "name": "floor",
+          "col": 4,
+          "row": 0
+        },
+        {
+          "name": "floor_shadowed",
+          "col": 5,
+          "row": 0
+        },
+        {
+          "name": "bedrock_0",
+          "col": 6,
+          "row": 0
+        },
+        {
+          "name": "bedrock_1",
+          "col": 7,
+          "row": 0
+        },
+        {
+          "name": "bedrock_2",
+          "col": 8,
+          "row": 0
+        },
+        {
+          "name": "edge_n",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "edge_e",
+          "col": 1,
+          "row": 1
+        },
+        {
+          "name": "edge_s",
+          "col": 2,
+          "row": 1
+        },
+        {
+          "name": "edge_w",
+          "col": 3,
+          "row": 1
+        },
+        {
+          "name": "corner_nw",
+          "col": 4,
+          "row": 1
+        },
+        {
+          "name": "corner_ne",
+          "col": 5,
+          "row": 1
+        },
+        {
+          "name": "corner_se",
+          "col": 6,
+          "row": 1
+        },
+        {
+          "name": "corner_sw",
+          "col": 7,
+          "row": 1
+        },
+        {
+          "name": "concave_nw",
+          "col": 8,
+          "row": 1
+        },
+        {
+          "name": "concave_ne",
+          "col": 9,
+          "row": 1
+        },
+        {
+          "name": "concave_se",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "concave_sw",
+          "col": 11,
+          "row": 1
+        },
+        {
+          "name": "corridor_ns",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "corridor_ew",
+          "col": 1,
+          "row": 2
+        },
+        {
+          "name": "corridor_new",
+          "col": 2,
+          "row": 2
+        },
+        {
+          "name": "corridor_esw",
+          "col": 3,
+          "row": 2
+        },
+        {
+          "name": "corridor_nes",
+          "col": 4,
+          "row": 2
+        },
+        {
+          "name": "corridor_nsw",
+          "col": 5,
+          "row": 2
+        },
+        {
+          "name": "corridor_all",
+          "col": 6,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "name": "tiles_fungal",
+      "file": "tiles_fungal.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "cols": 12,
+      "rows": 3,
+      "frames": [
+        {
+          "name": "dirt_0",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "dirt_1",
+          "col": 1,
+          "row": 0
+        },
+        {
+          "name": "dirt_2",
+          "col": 2,
+          "row": 0
+        },
+        {
+          "name": "dirt_3",
+          "col": 3,
+          "row": 0
+        },
+        {
+          "name": "floor",
+          "col": 4,
+          "row": 0
+        },
+        {
+          "name": "floor_shadowed",
+          "col": 5,
+          "row": 0
+        },
+        {
+          "name": "bedrock_0",
+          "col": 6,
+          "row": 0
+        },
+        {
+          "name": "bedrock_1",
+          "col": 7,
+          "row": 0
+        },
+        {
+          "name": "bedrock_2",
+          "col": 8,
+          "row": 0
+        },
+        {
+          "name": "edge_n",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "edge_e",
+          "col": 1,
+          "row": 1
+        },
+        {
+          "name": "edge_s",
+          "col": 2,
+          "row": 1
+        },
+        {
+          "name": "edge_w",
+          "col": 3,
+          "row": 1
+        },
+        {
+          "name": "corner_nw",
+          "col": 4,
+          "row": 1
+        },
+        {
+          "name": "corner_ne",
+          "col": 5,
+          "row": 1
+        },
+        {
+          "name": "corner_se",
+          "col": 6,
+          "row": 1
+        },
+        {
+          "name": "corner_sw",
+          "col": 7,
+          "row": 1
+        },
+        {
+          "name": "concave_nw",
+          "col": 8,
+          "row": 1
+        },
+        {
+          "name": "concave_ne",
+          "col": 9,
+          "row": 1
+        },
+        {
+          "name": "concave_se",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "concave_sw",
+          "col": 11,
+          "row": 1
+        },
+        {
+          "name": "corridor_ns",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "corridor_ew",
+          "col": 1,
+          "row": 2
+        },
+        {
+          "name": "corridor_new",
+          "col": 2,
+          "row": 2
+        },
+        {
+          "name": "corridor_esw",
+          "col": 3,
+          "row": 2
+        },
+        {
+          "name": "corridor_nes",
+          "col": 4,
+          "row": 2
+        },
+        {
+          "name": "corridor_nsw",
+          "col": 5,
+          "row": 2
+        },
+        {
+          "name": "corridor_all",
+          "col": 6,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "name": "tiles_magma",
+      "file": "tiles_magma.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "cols": 12,
+      "rows": 3,
+      "frames": [
+        {
+          "name": "dirt_0",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "dirt_1",
+          "col": 1,
+          "row": 0
+        },
+        {
+          "name": "dirt_2",
+          "col": 2,
+          "row": 0
+        },
+        {
+          "name": "dirt_3",
+          "col": 3,
+          "row": 0
+        },
+        {
+          "name": "floor",
+          "col": 4,
+          "row": 0
+        },
+        {
+          "name": "floor_shadowed",
+          "col": 5,
+          "row": 0
+        },
+        {
+          "name": "bedrock_0",
+          "col": 6,
+          "row": 0
+        },
+        {
+          "name": "bedrock_1",
+          "col": 7,
+          "row": 0
+        },
+        {
+          "name": "bedrock_2",
+          "col": 8,
+          "row": 0
+        },
+        {
+          "name": "edge_n",
+          "col": 0,
+          "row": 1
+        },
+        {
+          "name": "edge_e",
+          "col": 1,
+          "row": 1
+        },
+        {
+          "name": "edge_s",
+          "col": 2,
+          "row": 1
+        },
+        {
+          "name": "edge_w",
+          "col": 3,
+          "row": 1
+        },
+        {
+          "name": "corner_nw",
+          "col": 4,
+          "row": 1
+        },
+        {
+          "name": "corner_ne",
+          "col": 5,
+          "row": 1
+        },
+        {
+          "name": "corner_se",
+          "col": 6,
+          "row": 1
+        },
+        {
+          "name": "corner_sw",
+          "col": 7,
+          "row": 1
+        },
+        {
+          "name": "concave_nw",
+          "col": 8,
+          "row": 1
+        },
+        {
+          "name": "concave_ne",
+          "col": 9,
+          "row": 1
+        },
+        {
+          "name": "concave_se",
+          "col": 10,
+          "row": 1
+        },
+        {
+          "name": "concave_sw",
+          "col": 11,
+          "row": 1
+        },
+        {
+          "name": "corridor_ns",
+          "col": 0,
+          "row": 2
+        },
+        {
+          "name": "corridor_ew",
+          "col": 1,
+          "row": 2
+        },
+        {
+          "name": "corridor_new",
+          "col": 2,
+          "row": 2
+        },
+        {
+          "name": "corridor_esw",
+          "col": 3,
+          "row": 2
+        },
+        {
+          "name": "corridor_nes",
+          "col": 4,
+          "row": 2
+        },
+        {
+          "name": "corridor_nsw",
+          "col": 5,
+          "row": 2
+        },
+        {
+          "name": "corridor_all",
+          "col": 6,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "name": "tiles_frozen",
+      "file": "tiles_frozen.png",
       "frameWidth": 16,
       "frameHeight": 16,
       "cols": 12,

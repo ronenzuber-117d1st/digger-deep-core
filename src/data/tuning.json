@@ -3,14 +3,15 @@
   "player": {
     "startHp": 3,
     "startFuel": 100,
-    "moveSpeedTunnel": 12,
-    "moveSpeedDirt": 7,
+    "moveSpeedTunnel": 10,
+    "moveSpeedDirt": 6,
     "invulDuration": 1.0,
-    "fuelDrainRate": 1,
-    "fuelEmptyDamageRate": 1,
+    "fuelDrainRate": 2,
+    "fuelStarveSlowDuration": 10,
+    "fuelStarveNestCount": 8,
     "fuelPerEmerald": 2,
     "fuelPerCanister": 20,
-    "fuelPerFloorClear": 15
+    "fuelPerFloorClear": 0
   },
   "pulse": {
     "interval": 1.2,
@@ -21,6 +22,7 @@
     "fallSpeed": 8,
     "fallDelay": 0.5,
     "breakMinFall": 2,
+    "breakDelay": 0.25,
     "nuggetsOnBreak": 5,
     "nuggetValue": 3,
     "nuggetLifetime": 8.0,
@@ -29,31 +31,45 @@
   },
   "grub": {
     "hp": 2,
-    "speed": 3,
+    "speed": 2,
     "damage": 1,
     "pathfindInterval": 0.5
   },
   "burrower": {
     "hp": 3,
-    "speed": 2.5,
+    "speed": 3,
     "damage": 1,
     "pathfindInterval": 0.5,
-    "digDelay": 5.0
+    "digDelay": 3.0
   },
   "spitter": {
     "hp": 2,
-    "speed": 1.5,
+    "speed": 2,
     "damage": 1,
     "pathfindInterval": 1.0,
     "fireInterval": 2.5,
-    "projectileSpeed": 8
+    "projectileSpeed": 8,
+    "digDelay": 4.0
+  },
+  "drifter": {
+    "hp": 2,
+    "speed": 1.5,
+    "damage": 1,
+    "pathfindInterval": 0.4
   },
   "nest": {
     "hp": 1,
     "spawnInterval": 10,
-    "maxSpawns": 3,
-    "perFloorBase": 2,
-    "perFloorScale": 5
+    "spawnIntervalMin": 4,
+    "spawnsPerLocation": 2,
+    "perFloorBase": 5,
+    "minNests": 5,
+    "perFloorScale": 5,
+    "surfaceDelayQuick": 3,
+    "surfaceDelayMin": 15,
+    "surfaceDelayMax": 45,
+    "surfaceAnimSpeed": 7,
+    "firstSpawnDelay": 0.5
   },
   "gem": {
     "perFloor": 8,
@@ -61,11 +77,19 @@
   },
   "fuel": {
     "perFloorMin": 1,
-    "perFloorMax": 2
+    "perFloorMax": 1
+  },
+  "echoPing": {
+    "duration": 4.0
+  },
+  "tileBomb": {
+    "damage": 99
+  },
+  "magnetCoil": {
+    "range": 3,
+    "interval": 0.3
   },
   "economy": {
-    "deathKeepFraction": 0.5,
-    "extractionKeepFraction": 1.0,
     "costExponent": 1.6
   }
 }

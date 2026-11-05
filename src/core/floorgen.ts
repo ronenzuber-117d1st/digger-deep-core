@@ -7,7 +7,7 @@ import {
   FuelEntity,
   NestEntity,
 } from './entities';
-import { makeGrub, makeBurrower, makeSpitter } from './rules/monsters';
+import { makeGrub, makeBurrower, makeSpitter, makeDrifter } from './rules/monsters';
 import tuning from '../data/tuning.json';
 import monsterDefs from '../data/monsters.json';
 
@@ -21,7 +21,51 @@ export interface FloorData {
 const W = tuning.floor.width;
 const H = tuning.floor.height;
 
-type MonsterKind = 'grub' | 'burrower' | 'spitter';
+type MonsterKind = 'grub' | 'burrower' | 'spitter' | 'drifter';
+
+// Grid-maze corridor carver.
+// Divides the interior into a 6×5 grid of nodes, then randomly connects adjacent
+// nodes with 1-tile-wide passages (75% horizontal, 65% vertical probability).
+// Each node is jittered ±1 tile so the grid is irregular per seed.
+function carveCorridors(grid: Grid, rng: RNG): void {
+  const COLS = 6;
+  const ROWS = 5;
+
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let c = 0; c <= COLS; c++) {
+    const base = 1 + Math.round(c * (W - 2) / COLS);
+    xs.push(Math.max(1, Math.min(W - 2, base + nextInt(rng, -1, 2))));
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    const base = 1 + Math.round(r * (H - 2) / ROWS);
+    ys.push(Math.max(1, Math.min(H - 2, base + nextInt(rng, -1, 2))));
+  }
+
+  // Horizontal segments between horizontally-adjacent nodes (75% chance each)
+  for (let r = 0; r <= ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (nextInt(rng, 0, 4) < 3) {
+        const y = ys[r];
+        for (let x = xs[c]; x <= xs[c + 1]; x++) {
+          if (tileAt(grid, x, y) !== TileType.Bedrock) setTile(grid, x, y, TileType.Empty);
+        }
+      }
+    }
+  }
+
+  // Vertical segments between vertically-adjacent nodes (65% chance each)
+  for (let c = 0; c <= COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (nextInt(rng, 0, 20) < 13) {
+        const x = xs[c];
+        for (let y = ys[r]; y <= ys[r + 1]; y++) {
+          if (tileAt(grid, x, y) !== TileType.Bedrock) setTile(grid, x, y, TileType.Empty);
+        }
+      }
+    }
+  }
+}
 
 function buildMonsterPool(floor: number): MonsterKind[] {
   const pool: MonsterKind[] = [];
@@ -51,28 +95,43 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     setTile(grid, W - 1, y, TileType.Bedrock);
   }
 
-  const playerStart = { x: 1, y: 1 };
-  for (let dx = 0; dx < 3; dx++) {
-    for (let dy = 0; dy < 2; dy++) {
-      setTile(grid, 1 + dx, 1 + dy, TileType.Empty);
-    }
-  }
+  // Carve corridors before placing items so items stay embedded in dirt
+  carveCorridors(grid, rng);
 
-  const exitX = W - 2;
-  const exitY = H - 2;
+  const playerStart = { x: 1, y: 1 };
+  setTile(grid, 1, 1, TileType.Empty);
+
+  // Pick exit from 3 corners (not top-left where player starts)
+  const exitCorners = [
+    { x: W - 2, y: 1,     clearDx: -1, clearDy: 0 },  // top-right
+    { x: 1,     y: H - 2, clearDx: 1,  clearDy: 0 },  // bottom-left
+    { x: W - 2, y: H - 2, clearDx: -1, clearDy: 0 },  // bottom-right
+  ];
+  const exitCorner = exitCorners[nextInt(rng, 0, exitCorners.length)];
+  const exitX = exitCorner.x;
+  const exitY = exitCorner.y;
   setTile(grid, exitX, exitY, TileType.Exit);
-  setTile(grid, exitX - 1, exitY, TileType.Empty);
+  setTile(grid, exitX + exitCorner.clearDx, exitY + exitCorner.clearDy, TileType.Empty);
 
   const occupied = new Set<number>();
   const markOccupied = (x: number, y: number) => occupied.add(y * W + x);
   const isOccupied = (x: number, y: number) => occupied.has(y * W + x);
 
-  for (let dx = 0; dx < 3; dx++) {
-    for (let dy = 0; dy < 2; dy++) markOccupied(1 + dx, 1 + dy);
-  }
+  markOccupied(1, 1);
   markOccupied(exitX, exitY);
   markOccupied(exitX - 1, exitY);
 
+  // Items pick only from dirt tiles so they stay embedded (not floating in corridors)
+  const pickInDirt = (tries = 80): { x: number; y: number } | null => {
+    for (let i = 0; i < tries; i++) {
+      const x = nextInt(rng, 1, W - 1);
+      const y = nextInt(rng, 1, H - 1);
+      if (!isOccupied(x, y) && tileAt(grid, x, y) === TileType.Dirt) return { x, y };
+    }
+    return null;
+  };
+
+  // Nests and monsters can go anywhere (they carve their own tile if needed)
   const pickInterior = (tries = 50): { x: number; y: number } | null => {
     for (let i = 0; i < tries; i++) {
       const x = nextInt(rng, 1, W - 1);
@@ -83,20 +142,20 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
   };
 
   // Bags need horizontal clearance from walls, vertical room to fall,
-  // and no two bags in the same column (prevents stacking).
+  // and no two bags in the same column (prevents stacking). Must be in dirt.
   const bagColumns = new Set<number>();
   const pickBagPosition = (tries = 80): { x: number; y: number } | null => {
     for (let i = 0; i < tries; i++) {
-      const x = nextInt(rng, 2, W - 2); // stay off left/right walls
-      const y = nextInt(rng, 1, H - 3); // leave 2 rows above bedrock floor
-      if (!isOccupied(x, y) && !bagColumns.has(x)) return { x, y };
+      const x = nextInt(rng, 2, W - 2);
+      const y = nextInt(rng, 1, H - 3);
+      if (!isOccupied(x, y) && !bagColumns.has(x) && tileAt(grid, x, y) === TileType.Dirt) return { x, y };
     }
     return null;
   };
 
   const fuelCount = nextInt(rng, tuning.fuel.perFloorMin, tuning.fuel.perFloorMax + 1);
   for (let i = 0; i < fuelCount; i++) {
-    const pos = pickInterior();
+    const pos = pickInDirt();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
     const fuel: FuelEntity = { kind: 'fuel', id: nextId++, x: pos.x, y: pos.y };
@@ -112,13 +171,13 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
     const bag: BagEntity = {
       kind: 'bag', id: nextId++, x: pos.x, y: pos.y,
       falling: false, fallProgress: 0, fallDistance: 0,
-      pendingFallTimer: 0,
+      pendingFallTimer: 0, heavyCrushUsed: false, breakTimer: 0,
     };
     entities.push(bag);
   }
 
   for (let i = 0; i < tuning.gem.perFloor; i++) {
-    const pos = pickInterior();
+    const pos = pickInDirt();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
     const gem: GemEntity = { kind: 'gem', id: nextId++, x: pos.x, y: pos.y };
@@ -127,34 +186,45 @@ export function generateFloor(rng: RNG, floor: number): FloorData {
 
   const nestCount = tuning.nest.perFloorBase + Math.floor(floor / tuning.nest.perFloorScale);
   for (let i = 0; i < nestCount; i++) {
-    const pos = pickInterior();
+    const pos = pickInDirt();
     if (pos === null) break;
     markOccupied(pos.x, pos.y);
-    setTile(grid, pos.x, pos.y, TileType.Empty);
+    // First 3 nests surface quickly; the rest emerge later for surprise
+    const delay = i < 3
+      ? nextInt(rng, 0, tuning.nest.surfaceDelayQuick + 1)
+      : nextInt(rng, tuning.nest.surfaceDelayMin, tuning.nest.surfaceDelayMax + 1);
     const nest: NestEntity = {
       kind: 'nest', id: nextId++, x: pos.x, y: pos.y,
       hp: tuning.nest.hp,
       spawnTimer: tuning.nest.spawnInterval,
       spawnCount: 0,
+      surfaceDelay: delay,
+      surfacing: false,
+      surfaceFrame: 0,
     };
     entities.push(nest);
   }
 
   const monsterPool = buildMonsterPool(floor);
-  const monsterStart = pickInterior();
-  if (monsterStart !== null) {
+  const monsterCount = Math.min(1 + Math.floor(floor / 5), 6);
+  for (let i = 0; i < monsterCount; i++) {
+    const monsterStart = pickInterior();
+    if (monsterStart === null) break;
     markOccupied(monsterStart.x, monsterStart.y);
     setTile(grid, monsterStart.x, monsterStart.y, TileType.Empty);
     const kind = pickMonster(rng, monsterPool);
     switch (kind) {
       case 'grub':
-        entities.push(makeGrub(nextId++, monsterStart.x, monsterStart.y));
+        entities.push(makeGrub(nextId++, monsterStart.x, monsterStart.y, floor));
         break;
       case 'burrower':
-        entities.push(makeBurrower(nextId++, monsterStart.x, monsterStart.y));
+        entities.push(makeBurrower(nextId++, monsterStart.x, monsterStart.y, floor));
         break;
       case 'spitter':
-        entities.push(makeSpitter(nextId++, monsterStart.x, monsterStart.y));
+        entities.push(makeSpitter(nextId++, monsterStart.x, monsterStart.y, floor));
+        break;
+      case 'drifter':
+        entities.push(makeDrifter(nextId++, monsterStart.x, monsterStart.y, floor));
         break;
     }
   }

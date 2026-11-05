@@ -23,26 +23,29 @@ describe('fuel drain', () => {
   });
 });
 
-describe('fuel empty: HP damage', () => {
-  it('deals 1 damage per second at 0 fuel', () => {
-    const state = makeTestState({ fuel: 0, playerHp: 3 });
-    for (let i = 0; i < 60; i++) {
-      applyFuel(state, 1 / 60);
-    }
-    expect(state.player.hp).toBeLessThan(3);
+describe('fuel empty: slow-down', () => {
+  it('reduces fuelStarveMult as timer advances', () => {
+    const state = makeTestState({ fuel: 0 });
+    applyFuel(state, tuning.player.fuelStarveSlowDuration / 2);
+    expect(state.player.fuelStarveMult).toBeCloseTo(0.5, 3);
   });
 
-  it('does not deal damage while invulnerable', () => {
-    const state = makeTestState({ fuel: 0, playerHp: 3 });
-    state.player.invulTimer = 2.0;
-    applyFuel(state, 1.0);
-    expect(state.player.hp).toBe(3);
+  it('clamps fuelStarveMult to 0 when fully starved', () => {
+    const state = makeTestState({ fuel: 0 });
+    applyFuel(state, tuning.player.fuelStarveSlowDuration + 5);
+    expect(state.player.fuelStarveMult).toBe(0);
   });
 
-  it('does not deal damage when fuel > 0', () => {
-    const state = makeTestState({ fuel: 10, playerHp: 3 });
+  it('emits fuel-starved event when fully starved', () => {
+    const state = makeTestState({ fuel: 0 });
+    const events = applyFuel(state, tuning.player.fuelStarveSlowDuration + 0.01);
+    expect(events.some((e) => e.type === 'fuel-starved')).toBe(true);
+  });
+
+  it('does not slow when fuel > 0', () => {
+    const state = makeTestState({ fuel: 10 });
     applyFuel(state, 1.0);
-    expect(state.player.hp).toBe(3);
+    expect(state.player.fuelStarveMult).toBe(1);
   });
 });
 

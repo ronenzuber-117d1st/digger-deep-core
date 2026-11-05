@@ -70,5 +70,18 @@
 - **Fuel cap uses `tuning.player.startFuel`** as the max; there is no separate `maxFuel` field. Upgrades that raise the cap need a new field on `PlayerEntity` in week 2.
 - **`applyNests` emits `{ type: 'kill', targetId: -nestId }` as a spawn signal** to the render layer. This is a temporary hack; replace with a dedicated `spawn` event before audio hooks in.
 - **`economy.ts` cost formula** remains base 100 × 1.5^level from the scaffold. The design doc specifies 60/90/150 × 1.6^level per tier; align when the Base scene is built in week 2.
+## Music system (2026-11-03)
+
+- **MIDI-based NES chiptune player** (`src/audio/midi-player.ts` + `src/audio/chiptune.ts`) replaces the procedural oscillator for all in-game music. The old engine (`src/audio/music.ts`) is preserved and reachable via the debug panel engine-mode switch (M key).
+- **Deterministic MIDI generation** via `tools/music/compose.mjs` (seeded mulberry32 RNG, same as core). All 10 tracks are committed to `public/assets/music/`; regenerate with `npm run music`. The composer is the canonical source — never hand-edit the .mid files.
+- **`@tonejs/midi` for MIDI I/O.** The package ships as CJS; Vite handles browser-bundle interop transparently. Node.js ESM requires `import pkg from '@tonejs/midi'; const { Midi } = pkg`.
+- **NES Pulse waves via PeriodicWave.** Fourier coefficients: `real[n] = (2/nπ)·sin(2πnD)`, `imag[n] = (2/nπ)·(1−cos(2πnD))` for duty cycle D. PeriodicWaves are cached per (duty, AudioContext) pair to avoid repeated DFT.
+- **Look-ahead scheduler** fires every 100 ms and fills notes 300 ms ahead — standard Web Audio technique that avoids dropouts under JS jank.
+- **Channel→voice mapping in music.json**: ch0=pulse1, ch1=pulse2, ch2=triangle, ch9=noise. This mirrors General MIDI's drum channel assignment so standard DAWs can author/preview tracks with the correct voice layout.
+- **Scene→track mapping via `music.json` `scenes` object.** Dive scene maps `biome0`…`biome5` to track names. Biome index = `min(floor((floor−1)/5), 5)`.
+- **Engine modes**: `chiptune` (full NES chain, default), `dry` (MIDI data, plain square wave), `procedural` (old music.ts). Switchable at runtime via debug panel.
+- **Victory jingle at 80 BPM** (not 120): at 120 BPM the 7-note sequence was only 1.85 s, below the 2.5 s minimum for a satisfying fanfare.
+- **Counter-melody harmony offset fix**: `makeHarmony('counter')` copies lead-note times, so it must be called on un-offset (t=0-based) notes; offset is applied once to both lead and harmony together. Calling it on already-offset notes then adding offset again doubled the section time.
+
 - **Debug keys avoid Chrome browser shortcuts.** F1 (Help), F3 (Find), F5 (Refresh), F6 (address bar), F7 (caret browsing), F11 (fullscreen), F12 (DevTools) are all taken by Chrome. Current safe assignments: `` ` `` toggle panel · F2 god mode · F4 +emeralds · F8 skip floor · F9 spawn grub. When adding new debug keys, pick from F2, F4, F8, F9, F10 or non-F keys.
 - **Pause lives entirely in `DiveScene`**, not in `RunState`. `RunPhase` has no `'paused'` value — the scene just stops advancing the accumulator and shows an overlay. This keeps the core free of UI concerns. The help screen (`H`) reuses the same pause flag.

@@ -66,20 +66,25 @@ export class ExtractionScene extends Phaser.Scene {
   }
 
   private extract(carry: RunCarry): void {
+    const banked = carry.emeralds;
+    const prevBestFloor = carry.saveData.stats.bestFloor;
     const newSave: SaveData = {
       ...carry.saveData,
-      emeralds: carry.saveData.emeralds + carry.emeralds,
+      emeralds: carry.saveData.emeralds + banked,
       stats: {
         ...carry.saveData.stats,
         runs: carry.saveData.stats.runs + 1,
         bestFloor: Math.max(carry.saveData.stats.bestFloor, carry.floor),
         totalKills: carry.saveData.stats.totalKills + carry.kills,
       },
+      runHistory: [...(carry.saveData.runHistory ?? []),
+        { floor: carry.floor, emeralds: banked, kills: carry.kills, survived: true, seed: carry.seed }].slice(-50),
     };
     saveSave(newSave);
     this.scene.start('Summary', {
-      floor: carry.floor, emeraldsBanked: carry.emeralds,
-      kills: carry.kills, seed: carry.seed, survived: true, saveData: newSave,
+      floor: carry.floor, emeraldsCarried: carry.emeralds, emeraldsBanked: banked,
+      kills: carry.kills, killsByType: carry.killsByType ?? {}, seed: carry.seed,
+      survived: true, saveData: newSave, prevBestFloor,
     });
   }
 

@@ -43,5 +43,13 @@ export function makeTestState(
     nextId: 100,
     phase: 'playing',
     kills: 0,
+    killsByType: {},
+    runUpgrades: [],
+    secondWindUsed: false,
+    magnetTimer: 0,
+    fuelStarveTimer: 0,
+    echoPingAvailable: true,
+    echoPingTimer: 0,
+    tileBombAvailable: true,
   };
 }

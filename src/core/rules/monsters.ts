@@ -1,41 +1,69 @@
 import { RunState } from '../run';
-import { GrubEntity, BurrowerEntity, SpitterEntity, ProjectileEntity, dirDelta, Direction } from '../entities';
+import { GrubEntity, BurrowerEntity, SpitterEntity, DrifterEntity, ProjectileEntity, NestEntity, dirDelta, Direction } from '../entities';
 import { tileAt, setTile, TileType } from '../grid';
 import { GameEvent } from '../events';
 import tuning from '../../data/tuning.json';
 
+// ─── Difficulty helpers ───────────────────────────────────────────────────────
+
+function biomeTier(floor: number): number {
+  return Math.floor((floor - 1) / 5);
+}
+
+// +10% speed per biome tier
+function speedMult(floor: number): number {
+  return 1 + biomeTier(floor) * 0.1;
+}
+
+// +1 HP every two biome tiers (tiers 2-3 → +1, tiers 4-5 → +2, …)
+function hpBonus(floor: number): number {
+  return Math.floor(biomeTier(floor) / 2);
+}
+
 // ─── Grub ───────────────────────────────────────────────────────────────────
 
-export function makeGrub(id: number, x: number, y: number): GrubEntity {
+export function makeGrub(id: number, x: number, y: number, floor = 1): GrubEntity {
   return {
-    kind: 'grub', id, x, y, hp: tuning.grub.hp,
+    kind: 'grub', id, x, y, hp: tuning.grub.hp + hpBonus(floor),
     moving: false, moveProgress: 0,
     fromX: x, fromY: y, toX: x, toY: y,
-    pathTimer: 0, nextDir: null,
+    pathTimer: 0, nextDir: null, facing: 'right',
   };
 }
 
 // ─── Burrower ────────────────────────────────────────────────────────────────
 
-export function makeBurrower(id: number, x: number, y: number): BurrowerEntity {
+export function makeBurrower(id: number, x: number, y: number, floor = 1): BurrowerEntity {
   return {
-    kind: 'burrower', id, x, y, hp: tuning.burrower.hp,
+    kind: 'burrower', id, x, y, hp: tuning.burrower.hp + hpBonus(floor),
     moving: false, moveProgress: 0,
     fromX: x, fromY: y, toX: x, toY: y,
     pathTimer: 0, nextDir: null,
-    noDirTimer: 0, isDigging: false,
+    noDirTimer: 0, isDigging: false, facing: 'right',
   };
 }
 
 // ─── Spitter ──────────────────────────────────────────────────────────────────
 
-export function makeSpitter(id: number, x: number, y: number): SpitterEntity {
+export function makeSpitter(id: number, x: number, y: number, floor = 1): SpitterEntity {
   return {
-    kind: 'spitter', id, x, y, hp: tuning.spitter.hp,
+    kind: 'spitter', id, x, y, hp: tuning.spitter.hp + hpBonus(floor),
     moving: false, moveProgress: 0,
     fromX: x, fromY: y, toX: x, toY: y,
     pathTimer: 0, nextDir: null,
     fireTimer: tuning.spitter.fireInterval,
+    noDirTimer: 0, isDigging: false, facing: 'right',
+  };
+}
+
+// ─── Drifter ─────────────────────────────────────────────────────────────────
+
+export function makeDrifter(id: number, x: number, y: number, floor = 1): DrifterEntity {
+  return {
+    kind: 'drifter', id, x, y, hp: tuning.drifter.hp + hpBonus(floor),
+    moving: false, moveProgress: 0,
+    fromX: x, fromY: y, toX: x, toY: y,
+    pathTimer: 0, nextDir: null, facing: 'right',
   };
 }
 
@@ -43,11 +71,22 @@ export function makeSpitter(id: number, x: number, y: number): SpitterEntity {
 
 export function applyMonsters(state: RunState, dt: number): GameEvent[] {
   const events: GameEvent[] = [];
+  const toEvolve: number[] = [];
 
   for (const e of state.entities) {
-    if (e.kind === 'grub') updateGrub(state, e, dt);
-    else if (e.kind === 'burrower') updateBurrower(state, e, dt, events);
+    if (e.kind === 'grub') {
+      if (updateGrub(state, e, dt)) toEvolve.push(e.id);
+    } else if (e.kind === 'burrower') updateBurrower(state, e, dt, events);
     else if (e.kind === 'spitter') updateSpitter(state, e, dt, events);
+    else if (e.kind === 'drifter') updateDrifter(state, e, dt);
+  }
+
+  for (const id of toEvolve) {
+    const grub = state.entities.find((e) => e.id === id) as GrubEntity | undefined;
+    if (!grub) continue;
+    const burrower = makeBurrower(state.nextId++, grub.x, grub.y, state.floor);
+    state.entities = state.entities.filter((e) => e.id !== id).concat([burrower]);
+    events.push({ type: 'spawn', kind: 'burrower', x: grub.x, y: grub.y });
   }
 
   return events;
@@ -55,21 +94,71 @@ export function applyMonsters(state: RunState, dt: number): GameEvent[] {
 
 export function applyNests(state: RunState, dt: number): GameEvent[] {
   const events: GameEvent[] = [];
-  const toAdd: (GrubEntity | BurrowerEntity | SpitterEntity)[] = [];
+  const toAdd: (GrubEntity | BurrowerEntity | SpitterEntity | NestEntity)[] = [];
+
+  // Replenish destroyed nests — count all nests regardless of surface state
+  const nestCount = state.entities.filter((e) => e.kind === 'nest').length
+    + toAdd.filter((e) => e.kind === 'nest').length;
+  for (let n = nestCount; n < tuning.nest.minNests; n++) {
+    const newNest = makeRespawnNest(state);
+    if (newNest === null) break;
+    toAdd.push(newNest);
+  }
 
   for (const e of state.entities) {
     if (e.kind !== 'nest') continue;
+
+    if (e.surfaceDelay > 0) {
+      const tile = tileAt(state.grid, e.x, e.y);
+      if (tile !== TileType.Dirt) {
+        e.surfaceDelay = 0;
+        e.surfacing = true;
+      } else {
+        e.surfaceDelay -= dt;
+        if (e.surfaceDelay <= 0) {
+          setTile(state.grid, e.x, e.y, TileType.Empty);
+          e.surfacing = true;
+        }
+      }
+      continue;
+    }
+
+    if (e.surfacing) {
+      e.surfaceFrame += dt * tuning.nest.surfaceAnimSpeed;
+      if (e.surfaceFrame >= 13) {
+        e.surfaceFrame = 13;
+        e.surfacing = false;
+        // Stay at surfaced position — teleport will happen after first grub spawns
+        e.spawnTimer = tuning.nest.firstSpawnDelay;
+      }
+      continue;
+    }
+
+    // Active nest — spawn grubs on timer (faster at deeper floors)
     e.spawnTimer -= dt;
     if (e.spawnTimer > 0) continue;
-    e.spawnTimer = tuning.nest.spawnInterval;
-    if (e.spawnCount >= tuning.nest.maxSpawns) continue;
+    const nestInterval = Math.max(
+      tuning.nest.spawnIntervalMin,
+      tuning.nest.spawnInterval - Math.floor(state.floor / 5),
+    );
+    e.spawnTimer = nestInterval;
 
     const spawnPos = findEmptyAdjacent(state, e.x, e.y);
     if (spawnPos !== null) {
-      const grub = makeGrub(state.nextId++, spawnPos.x, spawnPos.y);
+      const grub = makeGrub(state.nextId++, spawnPos.x, spawnPos.y, state.floor);
       toAdd.push(grub);
       e.spawnCount += 1;
       events.push({ type: 'spawn', kind: 'grub', x: spawnPos.x, y: spawnPos.y });
+
+      // Teleport after spawnsPerLocation grubs — then reset and move again
+      if (e.spawnCount >= tuning.nest.spawnsPerLocation) {
+        e.spawnCount = 0;
+        const dest = pickNestTeleportDest(state, e);
+        if (dest !== null) {
+          e.x = dest.x;
+          e.y = dest.y;
+        }
+      }
     }
   }
 
@@ -79,33 +168,43 @@ export function applyNests(state: RunState, dt: number): GameEvent[] {
 
 // ─── Grub update ─────────────────────────────────────────────────────────────
 
-function updateGrub(state: RunState, grub: GrubEntity, dt: number): void {
+function updateGrub(state: RunState, grub: GrubEntity, dt: number): boolean {
   if (grub.moving) {
-    grub.moveProgress += dt * tuning.grub.speed;
+    grub.moveProgress += dt * tuning.grub.speed * speedMult(state.floor);
     if (grub.moveProgress >= 1) {
       grub.x = grub.toX;
       grub.y = grub.toY;
       grub.moving = false;
       grub.moveProgress = 0;
+      grub.pathTimer = 0;
     }
-    return;
+    return false;
+  }
+
+  // Eat nugget underfoot → evolve into burrower
+  const nuggetIdx = state.entities.findIndex((e) => e.kind === 'nugget' && e.x === grub.x && e.y === grub.y);
+  if (nuggetIdx !== -1) {
+    state.entities = state.entities.filter((_, i) => i !== nuggetIdx);
+    return true;
   }
 
   grub.pathTimer -= dt;
   if (grub.pathTimer <= 0) {
     grub.pathTimer = tuning.grub.pathfindInterval;
     grub.nextDir = bfsNextDir(state, grub.x, grub.y, false);
+    if (grub.nextDir === 'left' || grub.nextDir === 'right') grub.facing = grub.nextDir;
   }
 
-  if (grub.nextDir === null) return;
+  if (grub.nextDir === null) return false;
   tryMoveMonster(state, grub, grub.nextDir, false, () => { grub.nextDir = null; });
+  return false;
 }
 
 // ─── Burrower update ─────────────────────────────────────────────────────────
 
 function updateBurrower(state: RunState, b: BurrowerEntity, dt: number, _events: GameEvent[]): void {
   if (b.moving) {
-    b.moveProgress += dt * tuning.burrower.speed;
+    b.moveProgress += dt * tuning.burrower.speed * speedMult(state.floor);
     if (b.moveProgress >= 1) {
       if (b.isDigging) {
         setTile(state.grid, b.toX, b.toY, TileType.Empty);
@@ -115,6 +214,7 @@ function updateBurrower(state: RunState, b: BurrowerEntity, dt: number, _events:
       b.y = b.toY;
       b.moving = false;
       b.moveProgress = 0;
+      b.pathTimer = 0;
     }
     return;
   }
@@ -125,6 +225,7 @@ function updateBurrower(state: RunState, b: BurrowerEntity, dt: number, _events:
     b.nextDir = bfsNextDir(state, b.x, b.y, false);
     if (b.nextDir !== null) {
       b.noDirTimer = 0;
+      if (b.nextDir === 'left' || b.nextDir === 'right') b.facing = b.nextDir;
     } else {
       b.noDirTimer += tuning.burrower.pathfindInterval;
     }
@@ -160,14 +261,18 @@ function updateBurrower(state: RunState, b: BurrowerEntity, dt: number, _events:
 // ─── Spitter update ───────────────────────────────────────────────────────────
 
 function updateSpitter(state: RunState, sp: SpitterEntity, dt: number, events: GameEvent[]): void {
-  // Movement: chases player through tunnels (not dirt)
   if (sp.moving) {
-    sp.moveProgress += dt * tuning.spitter.speed;
+    sp.moveProgress += dt * tuning.spitter.speed * speedMult(state.floor);
     if (sp.moveProgress >= 1) {
+      if (sp.isDigging) {
+        setTile(state.grid, sp.toX, sp.toY, TileType.Empty);
+        sp.isDigging = false;
+      }
       sp.x = sp.toX;
       sp.y = sp.toY;
       sp.moving = false;
       sp.moveProgress = 0;
+      sp.pathTimer = 0;
     }
     return;
   }
@@ -176,10 +281,30 @@ function updateSpitter(state: RunState, sp: SpitterEntity, dt: number, events: G
   if (sp.pathTimer <= 0) {
     sp.pathTimer = tuning.spitter.pathfindInterval;
     sp.nextDir = bfsNextDir(state, sp.x, sp.y, false);
+    if (sp.nextDir !== null) {
+      sp.noDirTimer = 0;
+      if (sp.nextDir === 'left' || sp.nextDir === 'right') sp.facing = sp.nextDir;
+    } else {
+      sp.noDirTimer += tuning.spitter.pathfindInterval;
+    }
   }
 
   if (sp.nextDir !== null) {
     tryMoveMonster(state, sp, sp.nextDir, false, () => { sp.nextDir = null; });
+  } else if (sp.noDirTimer >= tuning.spitter.digDelay) {
+    const digDir = bfsNextDir(state, sp.x, sp.y, true);
+    if (digDir !== null) {
+      const { dx, dy } = dirDelta(digDir);
+      const tx = sp.x + dx;
+      const ty = sp.y + dy;
+      const tile = tileAt(state.grid, tx, ty);
+      if (tile !== TileType.Bedrock && !isMonsterAt(state, tx, ty, sp.id)) {
+        sp.fromX = sp.x; sp.fromY = sp.y;
+        sp.toX = tx; sp.toY = ty;
+        sp.moving = true; sp.moveProgress = 0;
+        sp.isDigging = tile === TileType.Dirt;
+      }
+    }
   }
 
   // Fire logic
@@ -199,9 +324,49 @@ function updateSpitter(state: RunState, sp: SpitterEntity, dt: number, events: G
         ownerId: sp.id,
       };
       state.entities = [...state.entities, proj];
-      events.push({ type: 'pulse-fire', x: sp.x, y: sp.y, dir: fireDir });
+      events.push({ type: 'pulse-fire', x: sp.x, y: sp.y, dir: fireDir, range: 1 });
     }
   }
+}
+
+// ─── Drifter update ───────────────────────────────────────────────────────────
+
+function updateDrifter(state: RunState, d: DrifterEntity, dt: number): void {
+  if (d.moving) {
+    d.moveProgress += dt * tuning.drifter.speed * speedMult(state.floor);
+    if (d.moveProgress >= 1) {
+      d.x = d.toX;
+      d.y = d.toY;
+      d.moving = false;
+      d.moveProgress = 0;
+      d.pathTimer = 0;
+    }
+    return;
+  }
+
+  d.pathTimer -= dt;
+  if (d.pathTimer <= 0) {
+    d.pathTimer = tuning.drifter.pathfindInterval;
+    // BFS through all non-bedrock tiles (ghosts through dirt)
+    d.nextDir = bfsNextDir(state, d.x, d.y, true);
+    if (d.nextDir !== null) {
+      if (d.nextDir === 'left' || d.nextDir === 'right') d.facing = d.nextDir;
+    }
+  }
+
+  if (d.nextDir === null) return;
+
+  // Phase through dirt without destroying it
+  const { dx, dy } = dirDelta(d.nextDir);
+  const tx = d.x + dx;
+  const ty = d.y + dy;
+  if (tileAt(state.grid, tx, ty) === TileType.Bedrock) return;
+  if (isMonsterAt(state, tx, ty, d.id)) return;
+
+  d.fromX = d.x; d.fromY = d.y;
+  d.toX = tx; d.toY = ty;
+  d.moving = true; d.moveProgress = 0;
+  d.nextDir = null;
 }
 
 // ─── Projectile update ───────────────────────────────────────────────────────
@@ -232,7 +397,11 @@ export function applyProjectiles(state: RunState, dt: number): GameEvent[] {
       // Hit player
       if (state.player.x === proj.x && state.player.y === proj.y) {
         if (state.player.invulTimer <= 0) {
-          state.player.hp -= proj.damage;
+          if (state.player.shield) {
+            state.player.shield = false;
+          } else {
+            state.player.hp -= proj.damage;
+          }
           state.player.invulTimer = tuning.player.invulDuration;
           events.push({ type: 'hit', source: 'monster' });
         }
@@ -317,7 +486,7 @@ function bfsNextDir(state: RunState, sx: number, sy: number, canDig: boolean): D
 function getLineOfSightDir(state: RunState, sx: number, sy: number): Direction | null {
   const px = state.player.x;
   const py = state.player.y;
-  const dirs: Direction[] = ['up', 'down', 'left', 'right'];
+  const dirs: Direction[] = ['left', 'right'];
 
   for (const dir of dirs) {
     const { dx, dy } = dirDelta(dir);
@@ -359,4 +528,55 @@ function findEmptyAdjacent(
     }
   }
   return null;
+}
+
+function pickNestTeleportDest(
+  state: RunState,
+  nest: NestEntity,
+): { x: number; y: number } | null {
+  const { grid, player, entities } = state;
+  const candidates: { x: number; y: number }[] = [];
+
+  for (let y = 1; y < grid.height - 1; y++) {
+    for (let x = 1; x < grid.width - 1; x++) {
+      if (tileAt(grid, x, y) !== TileType.Empty) continue;
+      if (x === player.x && y === player.y) continue;
+      if (Math.abs(x - player.x) + Math.abs(y - player.y) < 4) continue;
+      if (entities.some((e) => e.x === x && e.y === y && e.id !== nest.id)) continue;
+      candidates.push({ x, y });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  return candidates[(nest.id * 17 + (state.seed % 100)) % candidates.length];
+}
+
+function makeRespawnNest(state: RunState): NestEntity | null {
+  const { grid, player, entities } = state;
+  const candidates: { x: number; y: number }[] = [];
+
+  for (let y = 1; y < grid.height - 1; y++) {
+    for (let x = 1; x < grid.width - 1; x++) {
+      if (tileAt(grid, x, y) !== TileType.Dirt) continue;
+      if (Math.abs(x - player.x) + Math.abs(y - player.y) < 6) continue;
+      if (entities.some((e) => e.x === x && e.y === y)) continue;
+      candidates.push({ x, y });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  const id = state.nextId++;
+  const pos = candidates[(id * 17 + state.seed % 1000) % candidates.length];
+  const range = tuning.nest.surfaceDelayMax - tuning.nest.surfaceDelayMin;
+  const delay = tuning.nest.surfaceDelayMin + (id * 13 + state.seed % 1000) % range;
+
+  return {
+    kind: 'nest', id, x: pos.x, y: pos.y,
+    hp: tuning.nest.hp,
+    spawnTimer: tuning.nest.spawnInterval,
+    spawnCount: 0,
+    surfaceDelay: delay,
+    surfacing: false,
+    surfaceFrame: 0,
+  };
 }

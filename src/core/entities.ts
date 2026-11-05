@@ -10,6 +10,7 @@ export interface PlayerEntity {
   maxFuel: number;
   emeralds: number;
   facing: Direction;
+  lastHFacing: 'left' | 'right';
   moving: boolean;
   moveProgress: number;
   fromX: number;
@@ -18,9 +19,10 @@ export interface PlayerEntity {
   toY: number;
   isDigging: boolean;
   pulseTimer: number;
-  fuelDamageAccum: number;
+  fuelStarveMult: number;  // 1 = full speed, 0 = stopped (fuel-empty penalty)
   pulseDamage: number;
   digSpeedMult: number;
+  shield: boolean;
 }
 
 export interface GrubEntity {
@@ -37,6 +39,7 @@ export interface GrubEntity {
   toY: number;
   pathTimer: number;
   nextDir: Direction | null;
+  facing: 'left' | 'right';
 }
 
 export interface BurrowerEntity {
@@ -55,6 +58,7 @@ export interface BurrowerEntity {
   nextDir: Direction | null;
   noDirTimer: number;
   isDigging: boolean;
+  facing: 'left' | 'right';
 }
 
 export interface SpitterEntity {
@@ -72,6 +76,9 @@ export interface SpitterEntity {
   pathTimer: number;
   nextDir: Direction | null;
   fireTimer: number;
+  noDirTimer: number;
+  isDigging: boolean;
+  facing: 'left' | 'right';
 }
 
 export interface ProjectileEntity {
@@ -94,6 +101,8 @@ export interface BagEntity {
   fallProgress: number;
   fallDistance: number;
   pendingFallTimer: number;
+  heavyCrushUsed: boolean;
+  breakTimer: number;  // > 0: showing bag_landed, waiting to spawn nuggets
 }
 
 export interface NuggetEntity {
@@ -112,6 +121,9 @@ export interface NestEntity {
   hp: number;
   spawnTimer: number;
   spawnCount: number;
+  surfaceDelay: number;  // counts down before the nest begins surfacing; tile stays Dirt until 0
+  surfacing: boolean;    // true while the emerge animation is playing
+  surfaceFrame: number;  // 0.0–13.0, advances at surfaceAnimSpeed fps
 }
 
 export interface FuelEntity {
@@ -128,12 +140,30 @@ export interface GemEntity {
   y: number;
 }
 
-export type MonsterEntity = GrubEntity | BurrowerEntity | SpitterEntity;
+export interface DrifterEntity {
+  kind: 'drifter';
+  id: number;
+  x: number;
+  y: number;
+  hp: number;
+  moving: boolean;
+  moveProgress: number;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  pathTimer: number;
+  nextDir: Direction | null;
+  facing: 'left' | 'right';
+}
+
+export type MonsterEntity = GrubEntity | BurrowerEntity | SpitterEntity | DrifterEntity;
 
 export type Entity =
   | GrubEntity
   | BurrowerEntity
   | SpitterEntity
+  | DrifterEntity
   | ProjectileEntity
   | BagEntity
   | NuggetEntity
@@ -157,14 +187,14 @@ export function createPlayer(
   maxHp: number,
   fuel: number,
   maxFuel: number,
-  pulseDamage = 1,
+  pulseDamage = 0,
   digSpeedMult = 1,
 ): PlayerEntity {
   return {
     x, y, hp, maxHp, invulTimer: 0, fuel, maxFuel, emeralds: 0,
-    facing: 'right',
+    facing: 'right', lastHFacing: 'right',
     moving: false, moveProgress: 0, fromX: x, fromY: y, toX: x, toY: y,
-    isDigging: false, pulseTimer: 0, fuelDamageAccum: 0,
-    pulseDamage, digSpeedMult,
+    isDigging: false, pulseTimer: 0, fuelStarveMult: 1,
+    pulseDamage, digSpeedMult, shield: false,
   };
 }

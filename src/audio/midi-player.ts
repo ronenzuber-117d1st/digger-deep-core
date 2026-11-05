@@ -12,7 +12,6 @@
  */
 
 // @tonejs/midi ships as CJS; Vite handles the interop for browser bundles.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 import { Midi } from '@tonejs/midi';
 
 import { NESChiptune, VoiceName, VoiceConfig, MixConfig } from './chiptune';
@@ -250,6 +249,19 @@ export function ensureAudioContext(): void {
   try { getCtx(); } catch {}
 }
 
+/** Shared AudioContext accessor for SFX (avoids creating a second context). */
+export function getAudioContext(): AudioContext { return getCtx(); }
+
+/** Freeze all audio output (use on pause). Does not lose playback position. */
+export function suspendAudio(): void {
+  actx?.suspend().catch(() => undefined);
+}
+
+/** Unfreeze audio output (use on unpause). */
+export function resumeAudio(): void {
+  actx?.resume().catch(() => undefined);
+}
+
 /** Play a looping track (loads if necessary).  No-op if already playing the same track. */
 export async function playTrack(name: string, fadeInSec = 0.3): Promise<void> {
   if (engineMode === 'procedural') return;  // handled by old music.ts
@@ -298,11 +310,16 @@ export async function playJingle(name: string): Promise<void> {
     if (!track || !track.isJingle) return;
 
     const ctx = getCtx();
-    getChip();  // ensure chip exists
+    const c   = getChip();
+    // Apply the jingle's own voice + mix settings, and restore volume
+    // (stopTrack may have faded the master gain to 0 before we got here)
+    c.configure(track.mix, track.voices);
+    if (!muted) c.fadeIn(musicVolume, 0.05);
+    else        c.setMasterVolume(0);
 
     jingleTrack    = track;
     notePtr        = 0;
-    playStartAudio = ctx.currentTime + 0.02;
+    playStartAudio = ctx.currentTime + 0.08;
 
     runScheduler();
     startScheduler();

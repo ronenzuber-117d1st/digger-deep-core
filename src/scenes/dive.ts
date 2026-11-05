@@ -16,7 +16,11 @@ import { DebugPanel, DebugState, createDebugState } from '../debug/index';
 import { RunCarry } from './carry';
 import { bitmapLabel, COLOR, FONT_KEY, FONT_SIZE } from '../render/font';
 import tuning from '../data/tuning.json';
-import { playTrack, stopTrack, playJingle, getSceneTrack } from '../audio/index';
+import {
+  playTrack, stopTrack, playJingle, getSceneTrack,
+  processSfxEvents, setSfxVolume, setMusicVolume,
+  sfxPlayerDeath, suspendAudio, resumeAudio,
+} from '../audio/index';
 
 const STEP_DT = 1 / 60;
 const MAX_DELTA = 0.1;
@@ -129,6 +133,12 @@ export class DiveScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.paused = false;
+    this.confirmingExit = false;
+    this.accumulator = 0;
+    this.pendingEvents = [];
+    setMusicVolume(this.saveData.settings.musicVol);
+    setSfxVolume(this.saveData.settings.sfxVol);
     const biomeIdx = Math.min(Math.floor((this.gameState.floor - 1) / 5), 5);
     void playTrack(getSceneTrack(`biome${biomeIdx}`) ?? 'topsoil');
     this.events.once('shutdown', stopTrack);
@@ -208,9 +218,11 @@ export class DiveScene extends Phaser.Scene {
       if (next) {
         this.paused = true;
         this.pauseOverlay.setVisible(false);
+        suspendAudio();
       } else {
         this.paused = false;
         this.accumulator = 0;
+        resumeAudio();
       }
     });
 
@@ -218,7 +230,7 @@ export class DiveScene extends Phaser.Scene {
       if (this.confirmingExit || this.helpOverlay.visible) return;
       this.paused = !this.paused;
       this.pauseOverlay.setVisible(this.paused);
-      if (!this.paused) this.accumulator = 0;
+      if (this.paused) { suspendAudio(); } else { this.accumulator = 0; resumeAudio(); }
     });
 
     this.input.keyboard!.on('keydown-ESC', () => {
@@ -226,6 +238,7 @@ export class DiveScene extends Phaser.Scene {
         this.helpOverlay.setVisible(false);
         this.paused = false;
         this.accumulator = 0;
+        resumeAudio();
         return;
       }
       if (this.confirmingExit) {
@@ -233,6 +246,7 @@ export class DiveScene extends Phaser.Scene {
         this.confirmOverlay.setVisible(false);
         this.paused = false;
         this.accumulator = 0;
+        resumeAudio();
         return;
       }
       if (this.gameState.phase !== 'playing' && !this.paused) return;
@@ -240,6 +254,7 @@ export class DiveScene extends Phaser.Scene {
       this.confirmOverlay.setVisible(true);
       this.paused = true;
       this.pauseOverlay.setVisible(false);
+      suspendAudio();
     });
 
     this.input.keyboard!.on('keydown-Y', () => {
@@ -253,6 +268,7 @@ export class DiveScene extends Phaser.Scene {
       this.confirmOverlay.setVisible(false);
       this.paused = false;
       this.accumulator = 0;
+      resumeAudio();
     });
 
     this.input.keyboard!.on('keydown-BACKTICK', () => {
@@ -374,10 +390,13 @@ export class DiveScene extends Phaser.Scene {
         if (this.deathTimer === null) {
           this.deathTimer = 0;
           this.diveRenderer.startDeathAnim(player.lastHFacing);
+          sfxPlayerDeath();
+          stopTrack(0.3);
           void playJingle('death');
         }
         this.deathTimer += dt;
 
+        processSfxEvents(this.pendingEvents);
         this.diveRenderer.update(this.gameState, dt, this.pendingEvents, this.saveData.settings.shake);
         this.pendingEvents = [];
 
@@ -433,6 +452,7 @@ export class DiveScene extends Phaser.Scene {
       this.gameState.player.fuel = this.gameState.player.maxFuel;
     }
 
+    processSfxEvents(this.pendingEvents);
     this.diveRenderer.update(this.gameState, dt, this.pendingEvents, this.saveData.settings.shake);
     this.pendingEvents = [];
 

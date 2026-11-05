@@ -28,16 +28,16 @@ describe('floor generation: structure', () => {
     }
   });
 
-  it('has an exit tile at the bottom-right area', () => {
+  it('has exactly one exit tile in a corner', () => {
     const rng = createRNG(99);
     const { grid } = generateFloor(rng, 1);
-    let hasExit = false;
-    for (let x = W - 5; x < W; x++) {
-      for (let y = H - 5; y < H; y++) {
-        if (tileAt(grid, x, y) === TileType.Exit) hasExit = true;
+    let exitCount = 0;
+    for (let x = 0; x < W; x++) {
+      for (let y = 0; y < H; y++) {
+        if (tileAt(grid, x, y) === TileType.Exit) exitCount++;
       }
     }
-    expect(hasExit).toBe(true);
+    expect(exitCount).toBe(1);
   });
 
   it('places the player start in the top-left area', () => {

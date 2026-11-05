@@ -33,16 +33,20 @@ describe('upgradeCost', () => {
 });
 
 describe('deathPayout', () => {
-  it('base: keep 50% (salvage 0)', () => {
-    expect(deathPayout(100, 0)).toBe(50);
+  it('base: keep 0% (no salvage contract)', () => {
+    expect(deathPayout(100, 0)).toBe(0);
   });
 
-  it('salvage 1: keep 60%', () => {
-    expect(deathPayout(100, 1)).toBe(60);
+  it('salvage 1: keep 15%', () => {
+    expect(deathPayout(100, 1)).toBe(15);
   });
 
-  it('salvage 3: keep 80%', () => {
-    expect(deathPayout(100, 3)).toBe(80);
+  it('salvage 3: keep 45%', () => {
+    expect(deathPayout(100, 3)).toBe(45);
+  });
+
+  it('salvage 5: keep 75%', () => {
+    expect(deathPayout(100, 5)).toBe(75);
   });
 
   it('salvage cap at 100%', () => {
@@ -50,7 +54,7 @@ describe('deathPayout', () => {
   });
 
   it('floors the result', () => {
-    expect(deathPayout(101, 0)).toBe(50);
+    expect(deathPayout(101, 1)).toBe(15);
   });
 });
 

@@ -2,7 +2,7 @@
   {
     "id": "grub",
     "hp": 2,
-    "speed": 3,
+    "speed": 4,
     "behaviour": "chase",
     "minFloor": 1,
     "damage": 1
@@ -21,6 +21,13 @@
     "speed": 1.5,
     "behaviour": "spitter",
     "minFloor": 6,
+    "damage": 1
+  },
+  {
+    "id": "drifter",
+    "hp": 2,
+    "behaviour": "phase",
+    "minFloor": 16,
     "damage": 1
   }
 ]

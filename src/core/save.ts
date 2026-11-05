@@ -1,4 +1,12 @@
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
+
+export interface RunRecord {
+  floor: number;
+  emeralds: number;
+  kills: number;
+  survived: boolean;
+  seed: number;
+}
 export const SAVE_KEY = 'deepcore.save.v1';
 export const SAVE_BACKUP_KEY = 'deepcore.save.backup';
 
@@ -7,7 +15,6 @@ export type PermanentUpgradeId =
   | 'fuelTank'
   | 'drillMotor'
   | 'pulseCore'
-  | 'prospector'
   | 'salvageContract'
   | 'extraPick'
   | 'lanternMount';
@@ -27,7 +34,9 @@ export interface SaveData {
     musicVol: number;
     sfxVol: number;
     shake: boolean;
+    font: 'pixel' | 'smooth';
   };
+  runHistory: RunRecord[];
 }
 
 export function createFreshSave(): SaveData {
@@ -39,14 +48,14 @@ export function createFreshSave(): SaveData {
       fuelTank: 0,
       drillMotor: 0,
       pulseCore: 0,
-      prospector: 0,
       salvageContract: 0,
       extraPick: 0,
       lanternMount: 0,
     },
     stats: { runs: 0, deaths: 0, bestFloor: 0, totalKills: 0 },
     storyFlags: [],
-    settings: { musicVol: 0.8, sfxVol: 0.8, shake: true },
+    settings: { musicVol: 0.8, sfxVol: 0.8, shake: true, font: 'pixel' },
+    runHistory: [],
   };
 }
 
@@ -64,6 +73,34 @@ export function migrate(data: unknown): SaveData {
       stats: mergeStats(raw.stats, fresh.stats),
       storyFlags: Array.isArray(raw.storyFlags) ? (raw.storyFlags as string[]) : [],
       settings: mergeSettings(raw.settings, fresh.settings),
+      runHistory: mergeRunHistory(raw.runHistory),
+    };
+  }
+
+  // v2 → v3: prospector merged into salvageContract; death keep default changed to 0%
+  if (raw.version === 2) {
+    const fresh = createFreshSave();
+    const ups = mergeUpgrades(raw.upgrades, { ...fresh.upgrades, prospector: 0 } as Record<string, number>);
+    const prospectorLvl = typeof (ups as Record<string, number>).prospector === 'number'
+      ? (ups as Record<string, number>).prospector as number
+      : 0;
+    return {
+      ...fresh,
+      emeralds: typeof raw.emeralds === 'number' ? raw.emeralds : 0,
+      upgrades: {
+        ...fresh.upgrades,
+        hull: ups.hull ?? 0,
+        fuelTank: ups.fuelTank ?? 0,
+        drillMotor: ups.drillMotor ?? 0,
+        pulseCore: ups.pulseCore ?? 0,
+        salvageContract: Math.min((ups.salvageContract ?? 0) + prospectorLvl, 5),
+        extraPick: ups.extraPick ?? 0,
+        lanternMount: ups.lanternMount ?? 0,
+      },
+      stats: mergeStats(raw.stats, fresh.stats),
+      storyFlags: Array.isArray(raw.storyFlags) ? (raw.storyFlags as string[]) : [],
+      settings: mergeSettings(raw.settings, fresh.settings),
+      runHistory: mergeRunHistory(raw.runHistory),
     };
   }
 
@@ -77,6 +114,7 @@ export function migrate(data: unknown): SaveData {
       emeralds: legacyEmeralds,
       upgrades: mergeUpgrades(raw.upgrades, fresh.upgrades),
       stats: { ...fresh.stats, bestFloor: legacyBestFloor },
+      runHistory: [],
     };
   }
 
@@ -107,6 +145,19 @@ function mergeStats(raw: unknown, defaults: SaveData['stats']): SaveData['stats'
   };
 }
 
+function mergeRunHistory(raw: unknown): RunRecord[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (r): r is RunRecord =>
+      typeof r === 'object' && r !== null &&
+      typeof r.floor === 'number' &&
+      typeof r.emeralds === 'number' &&
+      typeof r.kills === 'number' &&
+      typeof r.survived === 'boolean' &&
+      typeof r.seed === 'number',
+  );
+}
+
 function mergeSettings(raw: unknown, defaults: SaveData['settings']): SaveData['settings'] {
   if (typeof raw !== 'object' || raw === null) return { ...defaults };
   const src = raw as Record<string, unknown>;
@@ -114,5 +165,6 @@ function mergeSettings(raw: unknown, defaults: SaveData['settings']): SaveData['
     musicVol: typeof src.musicVol === 'number' ? src.musicVol : defaults.musicVol,
     sfxVol: typeof src.sfxVol === 'number' ? src.sfxVol : defaults.sfxVol,
     shake: typeof src.shake === 'boolean' ? src.shake : defaults.shake,
+    font: src.font === 'smooth' ? 'smooth' : 'pixel',
   };
 }

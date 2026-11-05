@@ -5,14 +5,70 @@ import { tileAt, setTile, TileType, isSolid } from '../grid';
 import { GameEvent } from '../events';
 import tuning from '../../data/tuning.json';
 
+export function applyMagnetCoil(state: RunState, dt: number): GameEvent[] {
+  if (!state.runUpgrades.includes('magnetCoil')) return [];
+
+  state.magnetTimer += dt;
+  if (state.magnetTimer < tuning.magnetCoil.interval) return [];
+  state.magnetTimer -= tuning.magnetCoil.interval;
+
+  const px = state.player.x;
+  const py = state.player.y;
+  const range = tuning.magnetCoil.range;
+
+  for (const e of state.entities) {
+    if (e.kind !== 'gem') continue;
+    const dist = Math.abs(e.x - px) + Math.abs(e.y - py);
+    if (dist > range || dist === 0) continue;
+
+    const dx = px - e.x;
+    const dy = py - e.y;
+
+    // Build candidate steps: prefer the axis with the larger delta
+    const candidates: [number, number][] = [];
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx !== 0) candidates.push([Math.sign(dx), 0]);
+      if (dy !== 0) candidates.push([0, Math.sign(dy)]);
+    } else {
+      if (dy !== 0) candidates.push([0, Math.sign(dy)]);
+      if (dx !== 0) candidates.push([Math.sign(dx), 0]);
+    }
+
+    for (const [sx, sy] of candidates) {
+      if (!isSolid(tileAt(state.grid, e.x + sx, e.y + sy))) {
+        e.x += sx;
+        e.y += sy;
+        break;
+      }
+    }
+  }
+
+  // Collect any gems that drifted onto the player's tile
+  const events: GameEvent[] = [];
+  const toRemove: number[] = [];
+  for (const e of state.entities) {
+    if (e.kind !== 'gem' || e.x !== px || e.y !== py) continue;
+    const gemVal = state.runUpgrades.includes('goldRush') ? 2 : 1;
+    state.player.emeralds += gemVal;
+    state.player.fuel = Math.min(
+      state.player.fuel + gemVal * tuning.player.fuelPerEmerald,
+      state.player.maxFuel,
+    );
+    events.push({ type: 'pickup', kind: 'gem', value: gemVal });
+    toRemove.push(e.id);
+  }
+  state.entities = state.entities.filter((e) => !toRemove.includes(e.id));
+  return events;
+}
+
 export function applyMovement(state: RunState, input: InputSnapshot, dt: number): GameEvent[] {
   const events: GameEvent[] = [];
   const p = state.player;
 
   if (p.moving) {
-    const digSpeed = tuning.player.moveSpeedDirt * (p.digSpeedMult ?? 1);
-    const speed = p.isDigging ? digSpeed : tuning.player.moveSpeedTunnel;
-    p.moveProgress += dt * speed;
+    const digSpeed = tuning.player.moveSpeedDirt * (p.digSpeedMult ?? 1) * p.fuelStarveMult;
+    const speed = p.isDigging ? digSpeed : tuning.player.moveSpeedTunnel * p.fuelStarveMult;
+    p.moveProgress += dt * Math.max(speed, 0.5);  // floor ensures current tile always completes
     if (p.moveProgress >= 1) {
       p.x = p.toX;
       p.y = p.toY;
@@ -24,10 +80,13 @@ export function applyMovement(state: RunState, input: InputSnapshot, dt: number)
     return events;
   }
 
+  if (p.fuelStarveMult <= 0) return events;
+
   const dir = inputToDir(input);
   if (dir === null) return events;
 
   p.facing = dir;
+  if (dir === 'left' || dir === 'right') p.lastHFacing = dir;
   const { dx, dy } = dirDelta(dir);
   const tx = p.x + dx;
   const ty = p.y + dy;
@@ -85,27 +144,32 @@ function collectPickupsAt(state: RunState, x: number, y: number, events: GameEve
   for (const e of state.entities) {
     if (e.x !== x || e.y !== y) continue;
     if (e.kind === 'gem') {
-      state.player.emeralds += 1;
+      const gemVal = state.runUpgrades.includes('goldRush') ? 2 : 1;
+      state.player.emeralds += gemVal;
       state.player.fuel = Math.min(
-        state.player.fuel + tuning.player.fuelPerEmerald,
+        state.player.fuel + gemVal * tuning.player.fuelPerEmerald,
         state.player.maxFuel,
       );
-      events.push({ type: 'pickup', kind: 'gem' });
+      events.push({ type: 'pickup', kind: 'gem', value: gemVal });
       toRemove.push(e.id);
     } else if (e.kind === 'nugget') {
-      state.player.emeralds += tuning.bag.nuggetValue;
+      const nuggetVal = tuning.bag.nuggetValue;
+      state.player.emeralds += nuggetVal;
       state.player.fuel = Math.min(
-        state.player.fuel + tuning.bag.nuggetValue * tuning.player.fuelPerEmerald,
+        state.player.fuel + nuggetVal * tuning.player.fuelPerEmerald,
         state.player.maxFuel,
       );
-      events.push({ type: 'pickup', kind: 'nugget' });
+      events.push({ type: 'pickup', kind: 'nugget', value: nuggetVal });
       toRemove.push(e.id);
     } else if (e.kind === 'fuel') {
+      const canisterFuel = state.runUpgrades.includes('spareFuel')
+        ? tuning.player.fuelPerCanister * 1.1
+        : tuning.player.fuelPerCanister;
       state.player.fuel = Math.min(
-        state.player.fuel + tuning.player.fuelPerCanister,
+        state.player.fuel + canisterFuel,
         state.player.maxFuel,
       );
-      events.push({ type: 'pickup', kind: 'fuel' });
+      events.push({ type: 'pickup', kind: 'fuel', value: Math.round(canisterFuel) });
       toRemove.push(e.id);
     }
   }

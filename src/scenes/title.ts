@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { loadSave, saveSave } from '../storage/index';
 import { createFreshSave } from '../core/save';
 import { FONT_KEY, FONT_SIZE, measureText } from '../render/font';
-import { playTrack, stopTrack } from '../audio/index';
+import { playTrack, stopTrack, setMusicVolume, setSfxVolume } from '../audio/index';
 
 type TitleMode = 'title' | 'menu' | 'confirm-new';
 
@@ -64,6 +64,9 @@ export class TitleScene extends Phaser.Scene {
   create(): void {
     this.mode = 'title';
     this.blinkOn = true;
+    const save = loadSave();
+    setMusicVolume(save.settings.musicVol);
+    setSfxVolume(save.settings.sfxVol);
     void playTrack('title');
     this.events.once('shutdown', stopTrack);
 

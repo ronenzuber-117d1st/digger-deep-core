@@ -9,6 +9,8 @@ export interface RunCarry {
   maxFuel: number;
   emeralds: number;
   kills: number;
+  killsByType?: Record<string, number>;
   saveData: SaveData;
   runUpgrades?: string[];
+  secondWindUsed?: boolean;
 }

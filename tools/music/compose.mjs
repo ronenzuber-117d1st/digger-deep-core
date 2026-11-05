@@ -449,31 +449,59 @@ const TRACKS = [
 
 // ── Jingles (hardcoded, not generated) ────────────────────────────────────────
 
-// Death: descending phrase ~3 s at 90 BPM
+// Death: funeral march, 4 bars, A minor, 72 BPM (~13 s)
 function buildDeathJingle() {
-  const spb = 60 / 90;
-  const lead = [
-    [72, 0.5], [71, 0.5], [70, 0.5], [69, 0.5], [68, 0.5], [67, 1.0],
+  const spb = 60 / 72;
+
+  const toNotes = (arr, vel) => {
+    let t = 0;
+    return arr.map(([midi, dur]) => {
+      const n = { time: t * spb, midi, duration: dur * spb * 0.88, velocity: vel };
+      t += dur;
+      return n;
+    });
+  };
+
+  // Lead: A minor dotted-march figures (bar1 descends, bar2 resolves, bar3 rises, bar4 closes)
+  const leadData = [
+    [69,1.5],[67,0.5],[65,1.5],[64,0.5],  // Bar 1: A4 G4 F4 E4
+    [62,1.0],[60,0.5],[59,0.5],[57,2.0],  // Bar 2: D4 C4 B3 A3
+    [60,1.5],[62,0.5],[64,1.5],[65,0.5],  // Bar 3: C4 D4 E4 F4
+    [64,1.5],[62,0.5],[60,1.0],[57,2.0],  // Bar 4: E4 D4 C4 A3
   ];
-  const bass = [
-    [48, 0.5], [47, 0.5], [46, 0.5], [45, 0.5], [44, 0.5], [43, 1.0],
+
+  // Harmony: parallel thirds below lead in A minor
+  const harmData = [
+    [65,1.5],[64,0.5],[62,1.5],[60,0.5],  // Bar 1: F4 E4 D4 C4
+    [59,1.0],[57,0.5],[55,0.5],[53,2.0],  // Bar 2: B3 A3 G3 F3
+    [57,1.5],[59,0.5],[60,1.5],[62,0.5],  // Bar 3: A3 B3 C4 D4
+    [60,1.5],[59,0.5],[57,1.0],[53,2.0],  // Bar 4: C4 B3 A3 F3
   ];
-  let t = spb * 0.5; // short pickup rest
-  const ln = lead.map(([midi, dur]) => {
-    const n = { time: t, midi, duration: dur * spb * 0.85, velocity: 0.75 };
-    t += dur * spb; return n;
-  });
-  t = spb * 0.5;
-  const bn = bass.map(([midi, dur]) => {
-    const n = { time: t, midi, duration: dur * spb * 0.85, velocity: 0.60 };
-    t += dur * spb; return n;
-  });
-  return { lead: ln, harm: [], bass: bn, drums: [] };
+
+  // Bass: half-notes on roots and fifths
+  const bassData = [
+    [45,2.0],[45,2.0],  // Bar 1: A2 A2
+    [45,2.0],[52,2.0],  // Bar 2: A2 E3
+    [48,2.0],[52,2.0],  // Bar 3: C3 E3
+    [45,2.0],[45,2.0],  // Bar 4: A2 A2
+  ];
+
+  // Drums: kick on beats 0,2 — snare on 1,3 — slow and sparse
+  const drums = [];
+  for (let bar = 0; bar < 4; bar++) {
+    const b = bar * 4;
+    drums.push({ time: (b + 0) * spb, midi: GM_KICK,  duration: 0.1, velocity: 0.75 });
+    drums.push({ time: (b + 1) * spb, midi: GM_SNARE, duration: 0.1, velocity: 0.65 });
+    drums.push({ time: (b + 2) * spb, midi: GM_KICK,  duration: 0.1, velocity: 0.65 });
+    drums.push({ time: (b + 3) * spb, midi: GM_SNARE, duration: 0.1, velocity: 0.60 });
+  }
+
+  return { lead: toNotes(leadData, 0.80), harm: toNotes(harmData, 0.55), bass: toNotes(bassData, 0.65), drums };
 }
 
-// Victory: ascending fanfare ~4 s at 120 BPM
+// Victory: ascending fanfare ~3 s at 80 BPM
 function buildVictoryJingle() {
-  const spb = 60 / 120;
+  const spb = 60 / 80;
   const lead  = [[60,0.25],[64,0.25],[67,0.25],[72,0.5],[71,0.25],[72,0.25],[76,1.0]];
   const harm  = [[48,0.25],[52,0.25],[55,0.25],[60,0.5],[59,0.25],[60,0.25],[64,1.0]];
   const bass  = [[48,1.0],[50,0.5],[52,0.5],[53,2.0]];
@@ -508,48 +536,44 @@ function buildNotes(spec) {
   const spb   = 60 / spec.bpm;
   const barsA = spec.bars <= 16 ? spec.bars / 2 : 8; // 8 bars for A section
   const barsB = spec.bars <= 16 ? spec.bars / 2 : 8;
-
-  // Lead A section
-  const leadA = makeLead(spec, spec.chordsA, barsA, spb, spec.lead, rng);
-
-  // Lead B section (start time offset by section A)
   const offsetB = barsA * 4 * spb;
-  const leadB = makeLead(spec, spec.chordsB, barsB, spb, spec.lead, makePRNG(spec.seed + 100));
-  leadB.forEach(n => { n.time += offsetB; });
 
-  // Lead A' variation (24-bar tracks)
-  let leadAp = [];
+  // Section A: lead + harmony (both start at t=0)
+  const leadA = makeLead(spec, spec.chordsA, barsA, spb, spec.lead, rng);
+  const harmA = makeHarmony(spec, leadA, spec.chordsA, barsA, spb, spec.harm, makePRNG(spec.seed + 300));
+
+  // Section B: generate lead + harmony at t=0, then shift both by offsetB
+  const leadBRaw = makeLead(spec, spec.chordsB, barsB, spb, spec.lead, makePRNG(spec.seed + 100));
+  const harmBRaw = makeHarmony(spec, leadBRaw, spec.chordsB, barsB, spb, spec.harm, makePRNG(spec.seed + 400));
+  leadBRaw.forEach(n => { n.time += offsetB; });
+  harmBRaw.forEach(n => { n.time += offsetB; });
+  const leadB = leadBRaw;
+  const harmB = harmBRaw;
+
+  // Section A' variation (24-bar tracks): generate at t=0, shift after
+  let leadAp = [], harmAp = [];
   if (spec.hasVariation) {
+    const offsetAp = (barsA + barsB) * 4 * spb;
     const rng2 = makePRNG(spec.seed + 200);
-    const raw = makeLead(spec, spec.chordsA, barsA, spb, spec.lead, rng2);
+    const rawLead = makeLead(spec, spec.chordsA, barsA, spb, spec.lead, rng2);
     // Change last ~quarter of notes
-    const changeFrom = Math.max(0, raw.length - Math.ceil(raw.length / 4));
-    for (let i = changeFrom; i < raw.length; i++) {
-      const deg = nearestScaleDeg(raw[i].midi, spec.key, spec.scale);
-      raw[i].midi = clampOctave(
+    const changeFrom = Math.max(0, rawLead.length - Math.ceil(rawLead.length / 4));
+    for (let i = changeFrom; i < rawLead.length; i++) {
+      const deg = nearestScaleDeg(rawLead[i].midi, spec.key, spec.scale);
+      rawLead[i].midi = clampOctave(
         scaleStep(spec.key, spec.scale, deg + (rng2() < 0.5 ? 1 : 2)),
         spec.leadLo, spec.leadHi
       );
     }
-    const offsetAp = (barsA + barsB) * 4 * spb;
-    raw.forEach(n => { n.time += offsetAp; });
-    leadAp = raw;
+    // Generate harmony before offset so counter-melody copies correct (t=0-based) times
+    const rawH = makeHarmony(spec, rawLead, spec.chordsA, barsA, spb, spec.harm, makePRNG(spec.seed + 500));
+    rawLead.forEach(n => { n.time += offsetAp; });
+    rawH.forEach(n => { n.time += offsetAp; });
+    leadAp = rawLead;
+    harmAp = rawH;
   }
 
   const lead = [...leadA, ...leadB, ...leadAp];
-
-  // Harmony (use section chord data)
-  const rngH = makePRNG(spec.seed + 300);
-  const harmA = makeHarmony(spec, leadA, spec.chordsA, barsA, spb, spec.harm, rngH);
-  const harmB = makeHarmony(spec, leadB, spec.chordsB, barsB, spb, spec.harm, makePRNG(spec.seed + 400));
-  harmB.forEach(n => { n.time += offsetB; });
-  let harmAp = [];
-  if (spec.hasVariation) {
-    const offsetAp = (barsA + barsB) * 4 * spb;
-    const rawH = makeHarmony(spec, leadAp, spec.chordsA, barsA, spb, spec.harm, makePRNG(spec.seed + 500));
-    rawH.forEach(n => { n.time += offsetAp; });
-    harmAp = rawH;
-  }
   const harm = [...harmA, ...harmB, ...harmAp];
 
   // Bass
@@ -617,7 +641,7 @@ for (const spec of TRACKS) {
 }
 
 // Jingles
-writeTrack('death',   90,  buildDeathJingle());
-writeTrack('victory', 120, buildVictoryJingle());
+writeTrack('death',   72,  buildDeathJingle());
+writeTrack('victory', 80, buildVictoryJingle());
 
 console.log('Done. Output:', OUT_DIR);
